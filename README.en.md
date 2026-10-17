@@ -2,6 +2,8 @@
 
 # Watcher
 
+[![ci](https://github.com/daha1216/dsh-watcher/actions/workflows/ci.yml/badge.svg)](https://github.com/daha1216/dsh-watcher/actions/workflows/ci.yml)
+
 ## Install
 
 ### DSH Studio desktop app (recommended)
@@ -9,7 +11,7 @@
 Open **Settings → Plugins → Add plugin** and enter this in “Package name or address”:
 
 ```text
-github:daha1216/dsh-watcher#v0.6.2
+github:daha1216/dsh-watcher#v0.6.3
 ```
 
 The desktop plugin manager owns the Desktop profile and bundled package manager. This release commits `lib/`; normal use needs no clone, build, or DSHX installation. Follow the app if it asks you to reload or reopen after installation.
@@ -17,12 +19,12 @@ The desktop plugin manager owns the Desktop profile and bundled package manager.
 ### Web CLI
 
 ```sh
-dsh plugin --profile web add github:daha1216/dsh-watcher#v0.6.2
+dsh plugin --profile web add github:daha1216/dsh-watcher#v0.6.3
 ```
 
 This official CLI command writes only the `web` profile; it cannot modify the Desktop App profile. For an already-running Web Host, reopen that Host once and reload the page.
 
-DeepSeek Harness **0.1.7-rc.2** (`@deepseek-ai/dsh@0.1.7-rc.2`). The peer range `>=0.1.7-rc.1 <0.1.8` also accepts **0.1.7-rc.1**. Node `^22.19.0` or `>=24`.
+DeepSeek Harness **0.1.7-rc.2** (`@deepseek-ai/dsh@0.1.7-rc.2`). The peer range `>=0.1.7-rc.1 <0.1.8 || ^0.2.0-rc.1` accepts **0.1.7-rc.1**, **0.1.7-rc.2**, and the **0.2.0-rc.x** line; development and testing still track 0.1.7-rc.2. Node `^22.19.0` or `>=24`.
 
 A read-only plugin for DeepSeek Harness Web. Open the eye in the session header. A Session becomes a foldable work path: how many steps ran, how many tools fired, how long it took. Open a step for parallel branches, a tool result, or a reasoning row that stays folded until you ask.
 
@@ -37,6 +39,8 @@ It does not inject messages, invent hidden chain-of-thought, or replace the offi
 ![Step 2: glob and grep running as two parallel branches](docs/screenshots/parallel.png)
 
 ![Grouped: edit package.json ×2, still steps 5 and 6 when opened](docs/screenshots/grouped.png)
+
+> The screenshots are from 0.6.2. Since 0.6.3 the header is a command bar and the inspector is an overlay drawer, so the captures are slightly behind the UI.
 
 Grouped view only stacks what it can prove. Two different bash calls stay apart. The model stage shows only provider-visible reasoning already written into the Session. If nothing was recorded, it says so.
 
@@ -59,7 +63,17 @@ The settings summary and session HUD show **Estimated cost** (not “total value
 
 The interaction contract lives in [DESIGN.md](./DESIGN.md). MIT.
 
-## What's new in 0.6.1
+## What's new in 0.6.3
+
+- **The panel is a solid instrument.** Frosted glass is gone: opaque body, 1px scribe border, top bevel highlight and a layered shadow stack; the chart tooltip and timing card share the same surface variables.
+- **The header is a two-row command bar.** A status line (dot, state, live action, follow) sits over a sunken control row (counts and history loader, organize/depth segments). Turns read as chapters, and the inspector is a covering right drawer instead of a pushing column — the work path never reflows and the panel keeps its width.
+- **Phase rows fit on one line.** The 80–100px two-deck header became a 34px row (marker, chevron, title and badges, right-aligned step/execution/duration counters) with the full wording in the aria-label, plus a 2px duration-share bar at its base. The same panel height holds about 2.5× more rows.
+- **One visual system for the settings page and HUD.** Four equal metric tiles, semantic-coloured insight cards, emoji-free drilldowns, and hard-coded hex accents replaced with dsw tokens and `color-mix`.
+- **Folded content no longer costs DOM.** Collapsed subtrees render on demand, an idle panel stops walking historical subtrees every second, and only the executing phase subscribes to the 1Hz tick.
+- **Faster and bounded.** Folding a real 3,409-event session is 37% faster (35.4ms → 22.1ms) with byte-identical output; the panel no longer folds while closed; the retained-occurrence merge and the stale-seq diagnostic set are capped.
+- **Compat and tooling.** Peers widened to `>=0.1.7-rc.1 <0.1.8 || ^0.2.0-rc.1`, and a GitHub Actions workflow now runs typecheck, build and test.
+
+## 0.6.1
 
 - Checked on official DeepSeek Harness **0.1.7-rc.2**. `@deepseek-ai/dsh-*` peers stay `>=0.1.7-rc.1 <0.1.8`, so install accepts `0.1.7-rc.1` and `0.1.7-rc.2` and rejects `0.1.7-alpha.*`.
 - Icons stay `IconChevronRightOutlineRegular`, `IconRefreshOutlineRegular`, `IconCheckOutlineRegular`, and `IconCopyOutlineRegular`. rc.2 still does not export the size-suffixed names.

@@ -2,6 +2,8 @@
 
 # Watcher
 
+[![ci](https://github.com/daha1216/dsh-watcher/actions/workflows/ci.yml/badge.svg)](https://github.com/daha1216/dsh-watcher/actions/workflows/ci.yml)
+
 ## 安装
 
 ### DSH Studio 桌面 App（推荐）
@@ -9,7 +11,7 @@
 打开 **设置 → 插件 → 添加插件**，在“包名或地址”中输入：
 
 ```text
-github:daha1216/dsh-watcher#v0.6.2
+github:daha1216/dsh-watcher#v0.6.3
 ```
 
 桌面端插件管理器负责 Desktop profile 和内置包管理器。本发布已提交 `lib/`；普通使用不需要 clone、构建或安装 DSHX。若应用提示刷新或重新打开，请按提示完成。
@@ -17,12 +19,12 @@ github:daha1216/dsh-watcher#v0.6.2
 ### Web CLI
 
 ```sh
-dsh plugin --profile web add github:daha1216/dsh-watcher#v0.6.2
+dsh plugin --profile web add github:daha1216/dsh-watcher#v0.6.3
 ```
 
 这条官方 CLI 命令只写入 `web` profile，不能修改 Desktop App 的 profile。对于已经运行的 Web Host，请重新打开该 Host 一次，再刷新网页。
 
-需要 DeepSeek Harness **0.1.7-rc.2**（`@deepseek-ai/dsh@0.1.7-rc.2`）。peer 范围 `>=0.1.7-rc.1 <0.1.8` 也接受 **0.1.7-rc.1**。Node `^22.19.0` 或 `>=24`。
+需要 DeepSeek Harness **0.1.7-rc.2**（`@deepseek-ai/dsh@0.1.7-rc.2`）。peer 范围 `>=0.1.7-rc.1 <0.1.8 || ^0.2.0-rc.1`：0.1.7-rc.1、0.1.7-rc.2 和 **0.2.0-rc.x** 都能装，开发与测试仍以 0.1.7-rc.2 为准。Node `^22.19.0` 或 `>=24`。
 
 DeepSeek Harness Web 的只读插件。点会话标题栏里的眼睛，把 Session 收成一张能折叠的工作路径：这轮走了几步、跑了几次、花了多久；再展开某一步看并行分支、工具结果，或一条默认折着的推理记录。
 
@@ -37,6 +39,8 @@ DeepSeek Harness Web 的只读插件。点会话标题栏里的眼睛，把 Sess
 ![步骤 2：glob 和 grep 两项并行](docs/screenshots/parallel.png)
 
 ![归类：修改 package.json ×2，展开仍是步骤 5 和 6](docs/screenshots/grouped.png)
+
+> 截图取自 0.6.2。0.6.3 起面板改为命令栏布局、检视器为覆盖式抽屉，画面与上略不同，截图待补。
 
 归类只叠能证明相同的调用。两条不同的 bash 不会被捏在一起。模型阶段只显示供应商已经写进 Session 的可见 reasoning；没有记录就写未记录。
 
@@ -59,7 +63,17 @@ dsh plugin --profile web remove dsh-watcher
 
 交互约定在 [DESIGN.md](./DESIGN.md)。MIT。
 
-## 本次更新（0.6.1）
+## 本次更新（0.6.3）
+
+- **面板换成实心仪表盘。** 去掉毛玻璃：不透明底色、1px 描边、顶部高光与分层阴影；图表 tooltip 和计时卡统一到同一套表面变量。
+- **顶栏改成两行命令栏。** 上行是状态行（圆点、状态、实时动作、跟随），下行是下沉的控制行（计数与历史加载、归类/深度切换）。轮次改成章节式排版；检视器从挤压列改成覆盖式右侧抽屉，展开时工作路径不再回流，面板宽度也不变。
+- **阶段行压成单行。** 从 80–100px 的两行头压到 34px 一行（标记、箭头、标题与徽章、右对齐的步骤/执行/耗时），完整措辞保留在 aria-label；行底加 2px 时长占比条，一眼看出时间花在哪。同样的面板高度大约能多放 2.5 倍的行。
+- **设置页与 HUD 统一视觉。** 四个等宽指标块、带语义色的洞察卡、去 emoji 的下钻面板，硬编码色值全部换成 dsw token 与 `color-mix`。
+- **折叠内容不再占 DOM。** 收起的分支按需渲染，空闲面板不再每秒遍历历史子树；一轮里只有正在执行的阶段订阅 1Hz 时钟。
+- **更快、更省内存。** 同一次折叠在真实 3,409 事件会话上快 37%（35.4ms → 22.1ms）且输出逐字节一致；面板关闭时不再折叠；长期驻留的合并结果与诊断集合都有上限。
+- **兼容与工程化。** peer 范围放宽到 `>=0.1.7-rc.1 <0.1.8 || ^0.2.0-rc.1`；补上 typecheck / build / test 的 GitHub Actions。
+
+## 0.6.1
 
 - 在官方 DeepSeek Harness **0.1.7-rc.2** 上核对通过。`@deepseek-ai/dsh-*` 的 peer 仍是 `>=0.1.7-rc.1 <0.1.8`，安装期接受 `0.1.7-rc.1` 和 `0.1.7-rc.2`，不接受 `0.1.7-alpha.*`。
 - 图标仍是 `IconChevronRightOutlineRegular`、`IconRefreshOutlineRegular`、`IconCheckOutlineRegular`、`IconCopyOutlineRegular`。rc.2 同样没有带尺寸后缀的旧导出。
