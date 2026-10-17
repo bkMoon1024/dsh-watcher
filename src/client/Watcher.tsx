@@ -34,10 +34,12 @@ import {
   type WorkCluster,
 } from '../hub/aggregation.ts'
 import {
+  EMPTY_PICTURE,
   foldSnapshot,
   mergeObservedPictures,
   type WorkGroup,
   type WorkItem,
+  type WorkPicture,
   type WorkPresentation,
   type WorkStatus,
   type WorkStep,
@@ -1187,6 +1189,29 @@ const PhaseOverview = memo(function PhaseOverview({
   && prev.disclosure === next.disclosure
 )
 
+/** Placeholder while the panel is closed and no fold has run yet. */
+const NO_PERFORMANCE: ReadonlyMap<number, TurnPerformance> = new Map()
+
+interface NodeHint {
+  readonly kind?: unknown
+  readonly interrupted?: unknown
+}
+
+/**
+ * The closed trigger still has to report a failed or interrupted turn, but it
+ * must not fold the session to find that out. The snapshot ends with the node
+ * that closed the turn, so read that one node instead of the whole picture.
+ */
+function closedEdgeStatus(nodes: readonly NodeHint[], running: boolean): WorkStatus {
+  if (running) return 'running'
+  const last = nodes.at(-1)
+  if (last === undefined) return 'unknown'
+  if (last.kind === 'turn-error') return 'failure'
+  if (last.kind === 'turn-max-tokens') return 'interrupted'
+  if (last.kind === 'assistant' && last.interrupted === true) return 'interrupted'
+  return 'unknown'
+}
+
 /** Native session-header utility: exact work picture, typed evidence, no steering. */
 export function Watcher(props: WatcherProps) {
   const conversation = props.useConversation((state: any) => state)
@@ -1218,11 +1243,22 @@ function ReadyWatcher({
     hasMore: sessionSnapshot.hasMore,
   }), [chat, views, pending, sessionSnapshot.blank, sessionSnapshot.hasMore, sessionSnapshot.running])
   const running = snapshot.running
+  const [open, setOpen] = useState(false)
   const wholeSessionStats = useProjection('sessionStats')
   const wholeSessionInsights = useProjection('watcherInsights')
-  const snapshotPicture = useMemo(() => foldSnapshot(snapshot, { running }), [snapshot, running])
-  const observedRef = useRef<{ sessionId: string; picture: typeof snapshotPicture; source: typeof snapshotPicture } | null>(null)
+  // Folding walks every node, pair, step and item of the session, and this
+  // component is mounted in the session header for the whole page lifetime.
+  // Folding unconditionally meant every streaming delta paid for a picture
+  // nobody was looking at. Fold only while the panel is open; the closed
+  // trigger reads the cheap live session flags instead.
+  const snapshotPicture = useMemo(
+    () => (open ? foldSnapshot(snapshot, { running }) : null),
+    [open, snapshot, running],
+  )
+  const observedRef = useRef<{ sessionId: string; picture: WorkPicture; source: WorkPicture } | null>(null)
+  const lastPictureRef = useRef<WorkPicture | null>(null)
   const picture = useMemo(() => {
+    if (snapshotPicture === null) return lastPictureRef.current ?? EMPTY_PICTURE
     const previous = observedRef.current?.sessionId === sessionId
       ? observedRef.current.picture
       : null
@@ -1232,11 +1268,12 @@ function ReadyWatcher({
       && observedRef.current.source === snapshotPicture) return observedRef.current.picture
     const next = previous === null ? snapshotPicture : mergeObservedPictures(previous, snapshotPicture)
     observedRef.current = { sessionId, picture: next, source: snapshotPicture }
+    lastPictureRef.current = next
     return next
   }, [sessionId, snapshotPicture])
   const performanceByTurn = useMemo(
-    () => deriveTurnPerformance(snapshot.nodes, picture.turns),
-    [snapshot.nodes, picture.turns],
+    () => (open ? deriveTurnPerformance(snapshot.nodes, picture.turns) : NO_PERFORMANCE),
+    [open, snapshot.nodes, picture.turns],
   )
   const lastGroup = picture.nodes.at(-1)
   const lastGroupId = lastGroup?.id ?? null
@@ -1244,7 +1281,6 @@ function ReadyWatcher({
   const latestActivityKey = lastItem === undefined
     ? lastGroupId
     : `${lastGroupId}:${lastItem.id}:${lastItem.seq}:${lastItem.status}:${lastItem.resultSeq ?? 'open'}:${lastItem.resultTime ?? 'open'}`
-  const [open, setOpen] = useState(false)
   const [ui, setUi] = useState(() => ({ follow: true, unread: 0, selectedId: null as string | null }))
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [inspectorClosing, setInspectorClosing] = useState(false)
@@ -1353,18 +1389,24 @@ function ReadyWatcher({
     : totalTurnCount > picture.turnCount
       ? `${picture.turnCount}/${totalTurnCount} 个对话轮次`
       : `${picture.stepCount} 个步骤已载入`
-  const hasEdgeAlert = picture.pendingCount > 0
-    || picture.now.status === 'failure'
-    || picture.now.status === 'interrupted'
-  const summaryState = picture.pendingCount > 0
+  // While the panel is closed the fold is skipped, so the trigger reads the
+  // cheap live session flags instead of a work picture that is not being kept
+  // up to date.
+  const liveRunning = open ? picture.running : snapshot.running
+  const livePending = open ? picture.pendingCount > 0 : snapshot.pending.length > 0
+  const edgeStatus = open ? picture.now.status : closedEdgeStatus(snapshot.nodes, running)
+  const hasEdgeAlert = livePending
+    || edgeStatus === 'failure'
+    || edgeStatus === 'interrupted'
+  const summaryState = livePending
     ? '等待确认'
-    : picture.running
+    : liveRunning
       ? '正在执行'
-      : picture.now.status === 'failure'
+      : edgeStatus === 'failure'
         ? '执行失败'
-        : picture.now.status === 'interrupted'
+        : edgeStatus === 'interrupted'
           ? '已中断'
-          : picture.nodes.length > 0 ? '就绪' : '待命'
+          : (open ? picture.nodes.length > 0 : !snapshot.blank) ? '就绪' : '待命'
   const nowLabel = picture.now.label || (picture.nodes.length > 0 ? '执行路径已就绪' : '等待指令')
 
   const selectItem = (group: WorkGroup, item: WorkItem) => {
@@ -1660,7 +1702,7 @@ function ReadyWatcher({
         type="button"
         className={css.trigger}
         data-open={open ? '' : undefined}
-        data-live={picture.running && picture.nodes.length > 0 ? '' : undefined}
+        data-live={liveRunning && (open ? picture.nodes.length > 0 : !snapshot.blank) ? '' : undefined}
         data-alert={hasEdgeAlert ? '' : undefined}
         aria-expanded={open}
         aria-label={`Watcher，${summaryState}`}
@@ -1709,14 +1751,16 @@ function ReadyWatcher({
             <section className={css.workPicture} aria-label="Agent 工作路径" data-ud-check="watcher-work-picture" data-ud-role="panel">
               <header className={css.commandBar}>
                 <div className={css.commandRow}>
-                  <div className={css.commandState} aria-live="polite">
+                  {/* Only the coarse state is announced; the ticking clock below
+                      would otherwise re-announce once per second. */}
+                  <div className={css.commandState}>
                     <span
                       className={css.commandDot}
                       data-state={picture.running ? 'running' : hasEdgeAlert ? 'alert' : 'idle'}
                       aria-hidden="true"
                     />
-                    <span className={css.commandStatus} data-alert={hasEdgeAlert ? '' : undefined}>{summaryState}</span>
-                    <span className={css.commandNow} title={picture.running ? nowLabel : 'DSH-Watcher'}>
+                    <span className={css.commandStatus} aria-live="polite" data-alert={hasEdgeAlert ? '' : undefined}>{summaryState}</span>
+                    <span className={css.commandNow} aria-hidden="true" title={picture.running ? nowLabel : 'DSH-Watcher'}>
                       {picture.running ? nowLabel : 'DSH-Watcher'}
                     </span>
                   </div>

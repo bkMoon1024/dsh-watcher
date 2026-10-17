@@ -26,8 +26,11 @@ test('the Markdown reader is supplied through the declared RC1 client injection'
   const source = await readFile(clientSource, 'utf8')
   const bundle = await readFile(new URL('../lib/client.js', import.meta.url), 'utf8')
   assert.ok(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-ui-primitives'))
+  // The compat window is deliberately wider than the RC1 line: it also admits
+  // the 0.2.0-rc.x runtimes. Move this one regex when the window moves.
+  const compatRange = /^>=0\.1\.7-rc\.1 <0\.1\.8(?: \|\| \^0\.2\.0-rc\.1)?$/
   for (const [name, range] of Object.entries(pkg.peerDependencies)) {
-    if (name.startsWith('@deepseek-ai/dsh-')) assert.equal(range, '>=0.1.7-rc.1 <0.1.8', name)
+    if (name.startsWith('@deepseek-ai/dsh-')) assert.match(range, compatRange, name)
   }
   for (const [name, version] of Object.entries(pkg.devDependencies)) {
     if (name.startsWith('@deepseek-ai/dsh-')) assert.equal(version, '0.1.7-rc.2', name)

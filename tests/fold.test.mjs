@@ -317,6 +317,51 @@ test('assistant image blocks are preserved as artifacts', () => {
   assert.equal(artifact.presentation.kind, 'image')
 })
 
+test('an error flag nested in the result payload marks failure', () => {
+  const picture = foldEvents([
+    call(1, 1, 1, 'a', 'custom_tool', { value: 1 }),
+    result(2, 1, 1, 'a', 'the tool returned some text', { meta: { isError: true } }),
+  ])
+  assert.equal(allItems(picture).find(value => value.callId === 'a').status, 'failure')
+})
+
+test('a text exit marker in the result view outranks a numeric code in meta', () => {
+  const picture = foldEvents([
+    call(1, 1, 1, 'a', 'custom_tool', { value: 1 }),
+    result(2, 1, 1, 'a', 'ignored', {
+      meta: { exitCode: 1 },
+      resultView: { card: 'generic', output: '[exit code: 2]' },
+    }),
+  ])
+  const item = allItems(picture).find(value => value.callId === 'a')
+  assert.equal(item.exitCode, 2)
+  assert.equal(item.status, 'failure')
+})
+
+test('domain status in meta outranks a boolean in the result view', () => {
+  const picture = foldEvents([
+    call(1, 1, 1, 'a', 'custom_tool', { value: 1 }),
+    result(2, 1, 1, 'a', 'ignored', {
+      meta: { status: 'failed' },
+      resultView: { card: 'generic', ok: true },
+    }),
+  ])
+  assert.equal(allItems(picture).find(value => value.callId === 'a').status, 'failure')
+})
+
+test('an exit code in the result view outranks the same key in meta', () => {
+  const picture = foldEvents([
+    call(1, 1, 1, 'a', 'custom_tool', { value: 1 }),
+    result(2, 1, 1, 'a', 'ignored', {
+      meta: { exitCode: 1 },
+      resultView: { card: 'generic', exitCode: 0 },
+    }),
+  ])
+  const item = allItems(picture).find(value => value.callId === 'a')
+  assert.equal(item.exitCode, 0)
+  assert.equal(item.status, 'success')
+})
+
 test('parseJsonl keeps complete lines and skips one torn append', () => {
   const events = parseJsonl('{"type":"turn/start","seq":1}\n{"type":')
   assert.equal(events.length, 1)

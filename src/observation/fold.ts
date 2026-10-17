@@ -306,105 +306,6 @@ function resultText(value: unknown): string {
   return textFromContent(value).filter(Boolean).join('\n')
 }
 
-function findNumberByKeys(value: unknown, keys: ReadonlySet<string>, depth = 0): number | null {
-  if (depth > 8) return null
-  if (Array.isArray(value)) {
-    for (const child of value) {
-      const found = findNumberByKeys(child, keys, depth + 1)
-      if (found !== null) return found
-    }
-    return null
-  }
-  if (!isRecord(value)) return null
-  for (const [key, child] of Object.entries(value)) {
-    if (keys.has(key) && typeof child === 'number' && Number.isFinite(child)) return child
-  }
-  for (const child of Object.values(value)) {
-    const found = findNumberByKeys(child, keys, depth + 1)
-    if (found !== null) return found
-  }
-  return null
-}
-
-function findStringByKeys(value: unknown, keys: ReadonlySet<string>, depth = 0): string | null {
-  if (depth > 8) return null
-  if (Array.isArray(value)) {
-    for (const child of value) {
-      const found = findStringByKeys(child, keys, depth + 1)
-      if (found !== null) return found
-    }
-    return null
-  }
-  if (!isRecord(value)) return null
-  for (const [key, child] of Object.entries(value)) {
-    if (keys.has(key) && typeof child === 'string') return child
-  }
-  for (const child of Object.values(value)) {
-    const found = findStringByKeys(child, keys, depth + 1)
-    if (found !== null) return found
-  }
-  return null
-}
-
-function findBooleanByKeys(value: unknown, keys: ReadonlySet<string>, depth = 0): boolean | null {
-  if (depth > 6) return null
-  if (Array.isArray(value)) {
-    for (const child of value) {
-      const found = findBooleanByKeys(child, keys, depth + 1)
-      if (found !== null) return found
-    }
-    return null
-  }
-  if (!isRecord(value)) return null
-  for (const [key, child] of Object.entries(value)) {
-    if (keys.has(key) && typeof child === 'boolean') return child
-  }
-  for (const child of Object.values(value)) {
-    const found = findBooleanByKeys(child, keys, depth + 1)
-    if (found !== null) return found
-  }
-  return null
-}
-
-function exitCodeOf(...values: readonly unknown[]): number | null {
-  const keys = new Set(['exitCode', 'exit_code'])
-  for (const value of values) {
-    const found = findNumberByKeys(value, keys)
-    if (found !== null) return found
-    const text = resultText(value)
-    const marker = text.match(/\[exit code:\s*(-?\d+)\]/i)
-      ?? text.match(/"(?:exitCode|exit_code)"\s*:\s*(-?\d+)/)
-    if (marker?.[1] !== undefined) return Number(marker[1])
-  }
-  return null
-}
-
-function signalOf(...values: readonly unknown[]): string | null {
-  const keys = new Set(['signal'])
-  for (const value of values) {
-    const found = findStringByKeys(value, keys)
-    if (found !== null) return found
-  }
-  return null
-}
-
-function errorFlagOf(value: unknown): boolean {
-  return findBooleanByKeys(value, new Set(['isError'])) === true
-}
-
-function domainOutcomeOf(...values: readonly unknown[]): 'success' | 'failure' | null {
-  for (const value of values) {
-    const boolean = findBooleanByKeys(value, new Set(['ok', 'success']))
-    if (boolean !== null) return boolean ? 'success' : 'failure'
-    const status = findStringByKeys(value, new Set(['status', 'outcome']))?.toLowerCase()
-    if (status !== undefined && status !== null) {
-      if (/^(ok|success|succeeded|passed|done|completed)$/.test(status)) return 'success'
-      if (/^(error|failed|failure|denied|cancelled|canceled)$/.test(status)) return 'failure'
-    }
-  }
-  return null
-}
-
 function parseJsonCandidate(text: string): object | unknown[] | null {
   const trimmed = text.trim()
   if (!(trimmed.startsWith('{') || trimmed.startsWith('['))) return null
@@ -605,12 +506,114 @@ function recognizedResultView(value: unknown): boolean {
   return new Set(['generic', 'terminal', 'diff', 'search', 'read', 'web']).has(value.card)
 }
 
-function statusOfTool(pair: ToolPair, exitCode: number | null, signal: string | null): WorkStatus {
+interface ValueOutcomeProbe {
+  exitCode: number | null
+  signal: string | null
+  isError: boolean
+  okFlag: boolean | null
+  outcomeText: 'success' | 'failure' | null
+}
+
+interface ToolOutcomeProbe {
+  exitCode: number | null
+  signal: string | null
+  isError: boolean
+  domain: 'success' | 'failure' | null
+}
+
+const EXIT_CODE_KEYS: ReadonlySet<string> = new Set(['exitCode', 'exit_code'])
+const SIGNAL_KEYS: ReadonlySet<string> = new Set(['signal'])
+const ERROR_KEYS: ReadonlySet<string> = new Set(['isError'])
+const OK_KEYS: ReadonlySet<string> = new Set(['ok', 'success'])
+const OUTCOME_KEYS: ReadonlySet<string> = new Set(['status', 'outcome'])
+const SUCCESS_TEXT = /^(ok|success|succeeded|passed|done|completed)$/
+const FAILURE_TEXT = /^(error|failed|failure|denied|cancelled|canceled)$/
+
+function emptyProbe(): ValueOutcomeProbe {
+  return { exitCode: null, signal: null, isError: false, okFlag: null, outcomeText: null }
+}
+
+/**
+ * One walk collects every outcome field of one value. It used to take four
+ * separate depth-first searches per value, and a tool item probes three values,
+ * so this is the hottest path in a fold. Each field still takes the first match
+ * its own search would have found: keys at this level first, then children in
+ * order, with booleans limited to a shallower depth than numbers and strings.
+ */
+function probeToolOutcome(value: unknown, probe: ValueOutcomeProbe, depth = 0): void {
+  if (depth > 8) return
+  if (probe.exitCode !== null && probe.signal !== null && probe.isError
+    && probe.okFlag !== null && probe.outcomeText !== null) return
+  if (Array.isArray(value)) {
+    for (const child of value) probeToolOutcome(child, probe, depth + 1)
+    return
+  }
+  if (!isRecord(value)) return
+  for (const [key, child] of Object.entries(value)) {
+    if (probe.exitCode === null && EXIT_CODE_KEYS.has(key) && typeof child === 'number' && Number.isFinite(child)) {
+      probe.exitCode = child
+      continue
+    }
+    if (probe.signal === null && SIGNAL_KEYS.has(key) && typeof child === 'string') {
+      probe.signal = child
+      continue
+    }
+    if (depth <= 6 && typeof child === 'boolean') {
+      if (!probe.isError && ERROR_KEYS.has(key)) {
+        probe.isError = child
+        continue
+      }
+      if (probe.okFlag === null && OK_KEYS.has(key)) {
+        probe.okFlag = child
+        continue
+      }
+    }
+    if (probe.outcomeText === null && OUTCOME_KEYS.has(key) && typeof child === 'string') {
+      const status = child.toLowerCase()
+      if (SUCCESS_TEXT.test(status)) probe.outcomeText = 'success'
+      else if (FAILURE_TEXT.test(status)) probe.outcomeText = 'failure'
+    }
+  }
+  for (const child of Object.values(value)) probeToolOutcome(child, probe, depth + 1)
+}
+
+function domainOf(probe: ValueOutcomeProbe): 'success' | 'failure' | null {
+  if (probe.okFlag !== null) return probe.okFlag ? 'success' : 'failure'
+  return probe.outcomeText
+}
+
+function outcomeOfPair(pair: ToolPair): ToolOutcomeProbe {
+  const view = emptyProbe()
+  probeToolOutcome(pair.resultView, view)
+  const meta = emptyProbe()
+  probeToolOutcome(pair.meta, meta)
+  const result = emptyProbe()
+  probeToolOutcome(pair.result, result)
+  // Field order is the one the replaced helpers used: exit code and signal read
+  // view → meta → result, the domain reads meta → view → result, and the error
+  // flag only ever looked at the result.
+  return {
+    exitCode: view.exitCode ?? exitCodeFromText(resultText(pair.resultView))
+      ?? meta.exitCode ?? exitCodeFromText(resultText(pair.meta))
+      ?? result.exitCode ?? exitCodeFromText(resultText(pair.result)),
+    signal: view.signal ?? meta.signal ?? result.signal,
+    isError: result.isError,
+    domain: domainOf(meta) ?? domainOf(view) ?? domainOf(result),
+  }
+}
+
+function exitCodeFromText(text: string): number | null {
+  const marker = text.match(/\[exit code:\s*(-?\d+)\]/i)
+    ?? text.match(/"(?:exitCode|exit_code)"\s*:\s*(-?\d+)/)
+  return marker?.[1] === undefined ? null : Number(marker[1])
+}
+
+function statusOfTool(pair: ToolPair, probe: ToolOutcomeProbe): WorkStatus {
+  const { exitCode, signal } = probe
   if (pair.result === null) return 'running'
-  if (errorFlagOf(pair.result) || signal !== null || (exitCode !== null && exitCode !== 0)) return 'failure'
+  if (probe.isError || signal !== null || (exitCode !== null && exitCode !== 0)) return 'failure'
   if (exitCode === 0) return 'success'
-  const domain = domainOutcomeOf(pair.meta, pair.resultView, pair.result)
-  if (domain !== null) return domain
+  if (probe.domain !== null) return probe.domain
   if (recognizedResultView(pair.resultView)) return 'success'
   if (pair.orphan && pair.name === '') return 'unknown'
   return 'returned'
@@ -622,12 +625,12 @@ function mutableIntent(name: string): boolean {
 
 function toolItem(pair: ToolPair): WorkItem {
   const rawText = pair.result === null ? '' : resultText(pair.result)
-  const exitCode = exitCodeOf(pair.resultView, pair.meta, pair.result)
-  const signal = signalOf(pair.resultView, pair.meta, pair.result)
+  const probe = outcomeOfPair(pair)
+  const { exitCode, signal } = probe
   const target = targetOf(pair.name, pair.args)
   const signature = pair.name === '' ? null : normalizedSignature(pair.name, pair.args)
   const intentKey = mutableIntent(pair.name) && target !== null ? `${pair.name}\u0000${target}` : null
-  const status = statusOfTool(pair, exitCode, signal)
+  const status = statusOfTool(pair, probe)
   return {
     id: `tool:${pair.callId}`,
     seq: pair.seq,
@@ -980,10 +983,13 @@ function pairFromRunning(call: RunningToolCall, index: number): ToolPair {
 }
 
 /** Public RC1 Session/Conversation projection to occurrence-preserving tool pairs. */
-export function pairsFromSnapshot(snapshot: WatcherSnapshot): ToolPair[] {
-  const locations = snapshotLocations(snapshot)
+export function pairsFromSnapshot(
+  snapshot: WatcherSnapshot,
+  locations: Map<number, Coordinates> = snapshotLocations(snapshot),
+  nodes: readonly ConversationNode[] = trajectoryNodes(snapshot),
+): ToolPair[] {
   const pairs: ToolPair[] = []
-  for (const node of trajectoryNodes(snapshot)) {
+  for (const node of nodes) {
     if (node.kind !== 'tool-result') continue
     const pair = pairFromSettled(node)
     const coordinates = locations.get(node.seq)
@@ -997,9 +1003,12 @@ export function pairsFromSnapshot(snapshot: WatcherSnapshot): ToolPair[] {
 }
 
 function snapshotItems(snapshot: WatcherSnapshot): WorkItem[] {
+  // Both derivations are pure functions of one snapshot. Build them once and
+  // share them with the pair pass; each used to be walked twice per fold.
   const locations = snapshotLocations(snapshot)
-  const items = pairsFromSnapshot(snapshot).map(toolItem)
-  for (const node of trajectoryNodes(snapshot)) {
+  const nodes = trajectoryNodes(snapshot)
+  const items = pairsFromSnapshot(snapshot, locations, nodes).map(toolItem)
+  for (const node of nodes) {
     const coordinates = locations.get(node.seq) ?? { turn: 'turn' in node ? node.turn : 0, step: 'step' in node ? node.step : 0 }
     if (node.kind === 'user') {
       if (stringAt(node.source, 'kind') !== 'user') continue
@@ -1316,12 +1325,27 @@ function phasePriority(phase: WorkPhase): number {
 }
 
 function statusOfItems(items: readonly WorkItem[]): WorkStatus {
-  if (items.some(item => item.status === 'waiting')) return 'waiting'
-  if (items.some(item => item.status === 'running')) return 'running'
-  if (items.some(item => item.status === 'interrupted')) return 'interrupted'
-  if (items.some(item => item.status === 'failure' && item.recoveredBy === null)) return 'failure'
-  if (items.some(item => item.status === 'success')) return 'success'
-  if (items.some(item => item.status === 'returned')) return 'returned'
+  // One scan instead of one `some` per status; the priority order is unchanged.
+  let waiting = false
+  let running = false
+  let interrupted = false
+  let failure = false
+  let success = false
+  let returned = false
+  for (const item of items) {
+    if (item.status === 'waiting') waiting = true
+    else if (item.status === 'running') running = true
+    else if (item.status === 'interrupted') interrupted = true
+    else if (item.status === 'failure' && item.recoveredBy === null) failure = true
+    else if (item.status === 'success') success = true
+    else if (item.status === 'returned') returned = true
+  }
+  if (waiting) return 'waiting'
+  if (running) return 'running'
+  if (interrupted) return 'interrupted'
+  if (failure) return 'failure'
+  if (success) return 'success'
+  if (returned) return 'returned'
   return 'unknown'
 }
 
@@ -1526,12 +1550,31 @@ function pictureOf(
   ))
   const steps = stepsOf(items, options.stepTimes, options.modelOf)
   const groups = groupsOf(steps)
+  // Bucket groups once; the previous filter-per-turn scan was turns x groups.
+  const groupsByTurn = new Map<number, WorkGroup[]>()
+  for (const group of groups) {
+    const bucket = groupsByTurn.get(group.turn)
+    if (bucket === undefined) groupsByTurn.set(group.turn, [group])
+    else bucket.push(group)
+  }
   const turns: WorkTurn[] = []
-  for (const turnNumber of [...new Set(groups.map(group => group.turn))]) {
-    const turnGroups = groups.filter(group => group.turn === turnNumber)
+  for (const [turnNumber, turnGroups] of groupsByTurn) {
     const timing = options.turnTimes?.(turnNumber) ?? { startTime: null, endTime: null }
     turns.push({ turn: turnNumber, status: statusOfItems(turnGroups.flatMap(group => group.items)), groups: turnGroups, ...timing })
   }
+  // Every counter below used to rescan the whole item list on its own.
+  let actionCount = 0
+  let retryCount = 0
+  let iterationCount = 0
+  let unconfirmedFailureCount = 0
+  for (const item of items) {
+    if (item.source === 'tool') actionCount += 1
+    if (item.retryOf !== null) retryCount += 1
+    if (item.iterationIndex > 0) iterationCount += 1
+    if (item.status === 'failure' && item.recoveredBy === null) unconfirmedFailureCount += 1
+  }
+  let parallelStepCount = 0
+  for (const step of steps) if (step.parallel) parallelStepCount += 1
   const latest = items.at(-1)
   const now = latest === undefined
     ? EMPTY_NOW
@@ -1544,14 +1587,14 @@ function pictureOf(
     nodes: groups,
     turns,
     now,
-    actionCount: items.filter(item => item.source === 'tool').length,
+    actionCount,
     stepCount: steps.length,
     turnCount: turns.length,
-    parallelStepCount: steps.filter(step => step.parallel).length,
-    retryCount: items.filter(item => item.retryOf !== null).length,
-    iterationCount: items.filter(item => item.iterationIndex > 0).length,
+    parallelStepCount,
+    retryCount,
+    iterationCount,
     pendingCount: options.pendingCount,
-    unconfirmedFailureCount: items.filter(item => item.status === 'failure' && item.recoveredBy === null).length,
+    unconfirmedFailureCount,
     running: options.running,
     partialHistory: options.partialHistory,
   }
@@ -1600,6 +1643,9 @@ function stepModelsOfPicture(picture: WorkPicture): Map<string, ModelStepTrace> 
   ))))
 }
 
+/** Bound on retained occurrences; far above one window, low enough to stay safe. */
+const OBSERVED_ITEM_LIMIT = 4000
+
 /**
  * Retain every occurrence already observed in this mounted page while the
  * official RC8 window advances. Latest evidence wins by stable occurrence id,
@@ -1619,6 +1665,15 @@ export function mergeObservedPictures(previous: WorkPicture, current: WorkPictur
   const items = new Map<string, WorkItem>()
   for (const item of itemsOfPicture(previous)) items.set(item.id, item)
   for (const item of itemsOfPicture(current)) items.set(item.id, item)
+  // The merge bridges the sliding official window; it is not meant to keep a
+  // whole session resident. Cap pathological growth on very long pages.
+  if (items.size > OBSERVED_ITEM_LIMIT) {
+    const kept = [...items.values()]
+      .sort((left, right) => right.seq - left.seq)
+      .slice(0, OBSERVED_ITEM_LIMIT)
+    items.clear()
+    for (const item of kept) items.set(item.id, item)
+  }
 
   const turns = turnTimesOfPicture(previous)
   for (const [turn, timing] of turnTimesOfPicture(current)) {

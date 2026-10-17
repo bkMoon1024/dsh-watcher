@@ -39,6 +39,8 @@ export function installProjection(ctx:Context):void {
       if (typeof e.seq === 'number' && Number.isSafeInteger(e.seq) && e.seq >= 0 && e.seq <= state.seq && interesting.has(e.type as string)) {
         const session = state.sessionId || '(unknown)'
         if (!warnedRegressions.has(session)) {
+          // Diagnostic only; bound it so a long-lived page cannot grow forever.
+          if (warnedRegressions.size >= 200) warnedRegressions.clear()
           warnedRegressions.add(session)
           ctx.logger?.warn?.(`dsh-watcher: session ${session} saw stale event seq ${e.seq} after ${state.seq}; stale events are ignored and this is reported once`)
         }
