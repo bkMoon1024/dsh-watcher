@@ -443,6 +443,19 @@
   font-variant-numeric: var(--ui-num);
 }
 
+/* Scan failures are the one thing the page must never swallow: the metric
+ * tiles below would otherwise read "-" with no explanation. */
+.scanError {
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--ui-state-error) 40%, transparent);
+  border-radius: var(--ui-radius-card);
+  background: var(--ui-state-error-fill);
+  color: var(--ui-state-error);
+  font-size: 11px;
+  line-height: 16px;
+}
+
 /* ── 洞察卡：六宫格 ──
  * 语气色通过 data-tone 作用于整卡：ok / warn / err / think / info */
 

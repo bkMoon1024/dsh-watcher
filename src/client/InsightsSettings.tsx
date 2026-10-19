@@ -32,6 +32,7 @@ export function InsightsSettings(props: { remote?: any }) {
   const [sessionSort, setSessionSort] = useState<SessionSort>('tokens')
   const [loading, setLoading] = useState(false)
   const [sessions, setSessions] = useState<SessionsScan | null>(null)
+  const [scanError, setScanError] = useState<string | null>(null)
   const [activeDrilldown, setActiveDrilldown] = useState<Drilldown | null>(null)
   const mountedRef = useRef(true)
   useEffect(() => {
@@ -43,6 +44,7 @@ export function InsightsSettings(props: { remote?: any }) {
     if (!props.remote) return
     let active = true
     setLoading(true)
+    setScanError(null)
     scanSessions(props.remote, { limit: 500 })
       .then((res: SessionsScan) => {
         if (active) {
@@ -61,7 +63,9 @@ export function InsightsSettings(props: { remote?: any }) {
           }
         }
       })
-      .catch(console.error)
+      .catch((error: unknown) => {
+        if (active) setScanError(error instanceof Error ? error.message : String(error))
+      })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [props.remote])
@@ -69,9 +73,12 @@ export function InsightsSettings(props: { remote?: any }) {
   const refresh = () => {
     if (!props.remote || loading) return
     setLoading(true)
+    setScanError(null)
     scanSessions(props.remote, { limit: 500 })
       .then((res: SessionsScan) => { if (mountedRef.current) setSessions(res) })
-      .catch(console.error)
+      .catch((error: unknown) => {
+        if (mountedRef.current) setScanError(error instanceof Error ? error.message : String(error))
+      })
       .finally(() => { if (mountedRef.current) setLoading(false) })
   }
 
@@ -146,6 +153,13 @@ export function InsightsSettings(props: { remote?: any }) {
           ? `（会话较多，仅统计最近 ${analytics.scannedCount} / 共 ${analytics.listed} 个）`
           : ''}
       </p>
+      {scanError
+        ? (
+          <p className={css.scanError} role="alert">
+            会话统计读取失败：{scanError}
+          </p>
+        )
+        : null}
       <RoastCards
         analytics={analytics}
         activeDrilldown={activeDrilldown}
