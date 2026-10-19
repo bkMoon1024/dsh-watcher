@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- The client got a structure pass without changing behaviour: `Watcher.tsx` went 2029 → 758 lines, and `Insights.tsx` (2142 lines) split into `SessionInsights`, `InsightsSettings`, `Inspector`, `Overview`, `ModelStage`, an `insights-analytics` module and six `insights-sections/` files. The style modules went from three to five, one of them a shared vocabulary. The presentation contract still pins the same icons, labels and wiring strings.
+- Every style module now reads one `--ui-*` alias layer (`src/client/ui/tokens.module.css`) instead of picking `--dsw-*` tokens ad hoc: hard-coded hex is at zero, no module touches `--dsw-static-*`, and no `var(--dsw-*, fallback)` pair remains. The layer is mounted as a class on each client root — cross-file `composes` does not survive the plugin's css-modules build — so theme tokens still reach children by inheritance.
+- Host primitives replace hand-rolled controls where they exist: `Button` and `Input` from `@deepseek-ai/dsh-client-ui-primitives` now back the settings save/refresh actions and the numeric limits, and a new `ui/SegmentedToggle` reproduces the host segmented-control recipe for the organize/depth, scope, model and range switches. It is a labelled `role="group"` of toggle buttons rather than the host's `SegmentedControl`, because those switches change how the same content renders and own no panel to name in `aria-controls`.
+- Depth is one host elevation token and one border again: the local bevel highlight, the stacked contact/main/ambient shadows and the decorative chart glows are gone, hover states use host fills and the focus ring instead of `filter: brightness()` and card lift, and the ring itself comes from `--dsw-focus-ring-*`.
+- Accessibility: the HUD's headline cards and the ledger rows are real buttons again — they were clickable `div`s unreachable by keyboard — prose labels sit at the host's 11px floor, small controls grew to a 24px hit target, and the heatmap crosshair is an outline instead of a colour filter.
+- The settings page no longer recomputes its analytics inside the render path: aggregation, distributions and the session ledger are derived once per scan and only rebuild when the scan result or the range changes.
+- A failed scan now reports itself instead of rendering like an empty ledger, a first scan is told apart from "nothing recorded yet", and sessions the scan left out are named in the totals footnote.
+- Removed the dead history-notice and session-timing style blocks plus ~30 unreferenced classes; the panel's drag/resize/clamp logic moved into `panel-geometry.ts` (`usePanelGeometry`), leaving the component to render.
+
 ## 0.6.3 — 2026-10-18
 
 - The panel is solid now: an opaque body over a 1px scribe border, a top bevel highlight and a layered contact/main/ambient shadow stack, with the chart tooltip and the timing card sharing the same surface. `--watcher-surface`/`--watcher-layer` are redefined solid and the `prefers-reduced-transparency` fallback is gone, because solid is the default.

@@ -80,7 +80,7 @@ The implementation consumes DSH `--dsw-*` semantic tokens so light and dark them
 
 ## Typography
 
-Interface copy uses the host system family. Body and metadata are 13px and 12px respectively; code and raw results are 13px. Node titles use 15–16px. Tabular figures are required for Turn, Step, duration, exit code, and counts. Critical paths and commands wrap or scroll into a full-view surface; they are never silently truncated.
+Interface copy uses the host system family. Body and metadata are 13px and 12px respectively; explanatory labels may drop to 11px, the host's floor, and never below it. Code and raw results are 13px. Node titles use 15–16px. Tabular figures are required for Turn, Step, duration, exit code, and counts. Critical paths and commands wrap or scroll into a full-view surface; they are never silently truncated.
 
 ## Layout
 
@@ -108,13 +108,19 @@ Disclosure depth:
 
 ## Elevation & Depth
 
-Use the host menu surface, one border, and the host level-3 menu shadow. Depth communicates that the utility is anchored above the session header; nested content uses dividers and surface contrast, not more shadows.
+Use the host menu surface, one border, and one host elevation token (`--dsw-elevation-panel`, carried as `--ui-elevation-panel`). No bevel highlight, no stacked contact/main/ambient shadows and no glows: a plugin that invents its own depth reads as chrome pasted onto the host. Depth communicates that the utility is anchored above the session header; nested content uses dividers and surface contrast, not more shadows.
 
 ## Shapes
 
 The panel uses the host 12px menu radius. Rows use 8px only when they are interactive. Pills are reserved for semantic state or user controls. The rail is a one-pixel rule with compact junctions for parallel actions; it is not a decorative flow line.
 
 ## Components
+
+### Shared vocabulary
+
+The client carries one token layer, `src/client/ui/tokens.module.css`, which aliases the host's `--dsw-*` semantics into `--ui-*` names: accent and its fills, surfaces and lines, state colours, series ramps, chart hues, radii, elevation, focus, scrollbars and motion. Components mount the `.tokens` class on their root element instead of declaring `:root` variables — each module is inlined into its own style tag, so a global block would leak across plugins, and cross-file `composes` is dropped by the build. The same file carries `.series`, the ordered duration and categorical ramps, so a model keeps one hue across the donut, the stacked area and the legends.
+
+Host primitives are used wherever the host already ships one: `Button`, `Input`, `DisclosureRow`, `Tag`, `StateDot`, `MarkdownText` and friends. `ui/SegmentedToggle` mirrors the host segmented recipe for switches that own no tab panel; the host `SegmentedControl` is not used there because its tabs name panels through `aria-controls` and those panels do not exist.
 
 ### Work picture
 

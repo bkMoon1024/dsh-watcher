@@ -40,7 +40,7 @@ It does not inject messages, invent hidden chain-of-thought, or replace the offi
 
 ![Grouped: edit package.json ×2, still steps 5 and 6 when opened](docs/screenshots/grouped.png)
 
-> The screenshots are from 0.6.2. Since 0.6.3 the header is a command bar and the inspector is an overlay drawer, so the captures are slightly behind the UI.
+> The screenshots are from 0.6.2. Since 0.6.3 the header is a command bar and the inspector is an overlay drawer, and the unreleased visual pass moved the client onto host tokens and host controls, so the captures are further behind than the text.
 
 Grouped view only stacks what it can prove. Two different bash calls stay apart. The model stage shows only provider-visible reasoning already written into the Session. If nothing was recorded, it says so.
 
@@ -62,6 +62,17 @@ The public CLI manages `web` only; use the in-app “Add plugin” entry above f
 The settings summary and session HUD show **Estimated cost** (not “total value”) next to total tokens. Input / output / cache buckets are priced from `pricing/models.yaml`. A missing row is **Unknown**, never $0. A partial estimate keeps the known dollar in the main number and footnotes **Some models unpriced**. It is an estimate, not a bill. The default table covers mainstream DeepSeek, MiniMax, OpenAI, Anthropic, Gemini, Grok, GLM, and Qwen rows and is static (no live fetch). Override it in Watcher settings (`localStorage` key `dsh-watcher:pricing-override:v1`). PRs to the default table are welcome.
 
 The interaction contract lives in [DESIGN.md](./DESIGN.md). MIT.
+
+## What's new (unreleased)
+
+- A structure and visual pass with no behaviour change. `Watcher.tsx` went 2029 → 758 lines; `Insights.tsx` (2142 lines) split into a session HUD, the settings page, the inspector, the overview, the model stage, an analytics module and six `insights-sections/` files. The style modules went from three to five, one of them a shared vocabulary. The icons, labels and wiring strings pinned by the presentation contract are unchanged.
+- One semantic vocabulary. Every style module reads the `--ui-*` alias layer in `src/client/ui/tokens.module.css`: hard-coded hex is at zero, nothing references `--dsw-static-*` directly, and no `var(--dsw-*, fallback)` pair remains. The layer is mounted as a class on each client root (cross-file `composes` does not survive the plugin's css-modules build), so theme tokens still inherit down.
+- Host primitives where the host has one. The settings save/refresh actions and the numeric limits now use `Button` and `Input` from `@deepseek-ai/dsh-client-ui-primitives`, and a new `ui/SegmentedToggle` reproduces the host segmented-control recipe for the organize/depth, scope, model and range switches. It is a labelled `role="group"` of toggle buttons rather than the host `SegmentedControl`: those switches change how the same content renders and own no panel to name in `aria-controls`.
+- Depth is one host elevation token and one border again. The local bevel highlight, the stacked contact/main/ambient shadows and the decorative chart glows are gone; hover uses host fills and the focus ring instead of `filter: brightness()` and card lift.
+- Accessibility. The HUD headline cards and ledger rows were clickable `div`s unreachable by keyboard and are now real buttons; prose labels sit at the host 11px floor, small controls grew to a 24px hit target, and the heatmap crosshair is an outline rather than a colour filter.
+- The settings page no longer recomputes analytics in the render path: aggregation, distributions and the ledger are derived once per scan and only rebuild when the scan or the range changes.
+- A failed scan reports itself instead of rendering like an empty ledger, a first scan is told apart from “nothing recorded yet”, and sessions the scan left out are named in the totals footnote.
+- Dead styles removed: the history-notice and session-timing blocks plus ~30 unreferenced classes. The panel's drag/resize/clamp logic moved into `panel-geometry.ts` (`usePanelGeometry`).
 
 ## What's new in 0.6.3
 
