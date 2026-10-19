@@ -83,6 +83,19 @@ export function InsightsSettings(props: { remote?: any }) {
   }
 
   const analytics = useMemo(() => analyticsOf(sessions, range, sessionSort, pricing), [sessions, range, sessionSort, pricing])
+  // A scan skips sessions for concrete reasons (no cached projection yet, or a
+  // subagent whose inherited prefix would double-count). Those reasons already
+  // travel with the rows; folding them into one line explains the gap between
+  // "scanned" and "counted" instead of leaving it a mystery.
+  const skipped = useMemo(() => {
+    const reasons = new Map<string, number>()
+    for (const row of (sessions?.rows ?? []) as any[]) {
+      if (row.value) continue
+      const reason = typeof row.error === 'string' && row.error ? row.error : '未知原因'
+      reasons.set(reason, (reasons.get(reason) ?? 0) + 1)
+    }
+    return [...reasons.entries()].sort((a, b) => b[1] - a[1])
+  }, [sessions])
   const activeViewMode = customViewMode ?? (range === '30' || range === '180' ? 'line' : 'bar')
   const cacheNote = !analytics
     ? ''
@@ -153,6 +166,19 @@ export function InsightsSettings(props: { remote?: any }) {
           ? `（会话较多，仅统计最近 ${analytics.scannedCount} / 共 ${analytics.listed} 个）`
           : ''}
       </p>
+      {skipped.length > 0
+        ? (
+          <p className={css.heroScanNote}>
+            未纳入统计 {skipped.reduce((sum, [, count]) => sum + count, 0)} 个：
+            {skipped.map(([reason, count], index) => (
+              <span key={reason}>
+                {index > 0 ? ' · ' : ''}
+                <span title={reason}>{reason.replace(/[；;].*$/, '')}（{count}）</span>
+              </span>
+            ))}
+          </p>
+        )
+        : null}
       {scanError
         ? (
           <p className={css.scanError} role="alert">
