@@ -1892,8 +1892,6 @@
 
 @media (max-width: 520px) {
   .menu { width: calc(100vw - 24px); }
-  .pictureHeader { padding: 14px 12px; }
-  .now { font-size: 16px; }
   .turns { padding-inline: 6px; }
   .groupBadges span:nth-child(n+2) { display: none; }
   .inspectorHeader,

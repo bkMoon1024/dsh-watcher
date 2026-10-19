@@ -491,7 +491,6 @@
   cursor: pointer;
   transition:
     border-color var(--ui-motion-fast) var(--ui-ease),
-    transform var(--ui-motion-fast) var(--ui-ease),
     box-shadow var(--ui-motion-fast) var(--ui-ease);
   user-select: none;
   box-sizing: border-box;
@@ -507,10 +506,6 @@
   .roastItem {
     transition: none;
   }
-
-  .roastItem:hover {
-    transform: none;
-  }
 }
 
 .roastItem[data-tone='ok'] { --tone: var(--ui-state-success); }
@@ -521,16 +516,11 @@
 
 .roastItem:hover {
   border-color: var(--ui-line-strong);
-  transform: translateY(-1px);
 }
 
 .roastItemActive {
   border-color: color-mix(in srgb, var(--tone) 55%, transparent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--tone) 35%, transparent);
-}
-
-.roastItemActive:hover {
-  transform: none;
 }
 
 .roastHead {
@@ -1127,10 +1117,6 @@
   flex-shrink: 0;
 }
 
-.dlDotThink {
-  background: var(--ui-series-think);
-}
-
 .dlDotBash {
   background: var(--ui-series-bash);
 }
@@ -1236,11 +1222,6 @@
   border-radius: 5px;
   overflow: hidden;
   min-height: 0;
-  transition: filter 120ms, box-shadow 120ms;
-}
-
-.dayColFill:hover {
-  filter: brightness(1.08);
 }
 
 .daySeg { width: 100%; flex: none; min-height: 0; }
@@ -1276,7 +1257,6 @@
 }
 
 .dayColFillActive {
-  filter: brightness(1.15);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--ui-accent) 55%, transparent);
 }
 
@@ -1862,13 +1842,11 @@
 .heatmapCell[data-level='3'] {
   background: color-mix(in srgb, var(--ui-accent) 72%, transparent);
   border: 1px solid color-mix(in srgb, var(--ui-accent) 88%, transparent);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--ui-accent) 22%, transparent);
 }
 
 .heatmapCell[data-level='4'] {
   background: var(--ui-accent);
   border: 1px solid var(--ui-accent-line);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--ui-accent) 40%, transparent);
 }
 
 .heatmapCell[data-future='true'] {
@@ -1881,10 +1859,8 @@
 /* 悬停准星：品牌色聚焦圈，不放大不破版 */
 .heatmapCell:hover:not([data-future='true']),
 .heatmapCellActive {
-  transform: none;
-  outline: 2px solid var(--ui-accent);
+  outline: var(--ui-focus-width) solid var(--ui-accent);
   outline-offset: 1px;
-  filter: brightness(1.2);
   z-index: 10;
 }
 
