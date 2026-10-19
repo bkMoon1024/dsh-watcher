@@ -379,7 +379,7 @@
 .phaseHeader::before {
   content: '';
   position: absolute;
-  left: 6px;
+  left: 20px;
   top: 7px;
   bottom: 7px;
   width: 2px;
@@ -388,13 +388,12 @@
 }
 
 .phaseToggle {
-  display: grid;
-  grid-template-columns: 12px 8px minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
   gap: 6px;
   width: 100%;
   height: 30px;
-  padding: 0 14px 0 16px;
+  padding: 0 14px 0 30px;
   border: 0;
   background: transparent;
   color: var(--ui-text);
@@ -406,6 +405,7 @@
 .phaseToggle:hover { background: var(--ui-hover); }
 
 .phaseChevron {
+  flex: none;
   color: var(--ui-text-tertiary);
   transition: transform var(--ui-motion-fast) var(--ui-ease);
 }
@@ -413,6 +413,7 @@
 .phaseToggle[aria-expanded='true'] .phaseChevron { transform: rotate(90deg); }
 
 .phaseMarker {
+  flex: none;
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -425,6 +426,7 @@
 .phaseMarker[data-state='interrupted'] { background: var(--ui-state-error); }
 
 .phaseTitle {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   font-size: 13px;
@@ -447,7 +449,6 @@
 
 .phaseMeta {
   flex: none;
-  margin-left: 6px;
   font-size: 11px;
   color: var(--ui-text-tertiary);
   font-variant-numeric: var(--ui-num);
@@ -471,7 +472,7 @@
   gap: 6px;
   width: 100%;
   height: 24px;
-  padding: 0 14px 0 30px;
+  padding: 0 14px 0 44px;
   border: 0;
   background: transparent;
   color: var(--ui-text-secondary);
@@ -521,13 +522,12 @@
 .cluster { position: relative; }
 
 .clusterToggle {
-  display: grid;
-  grid-template-columns: 12px 14px minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
   gap: 6px;
   width: 100%;
   height: 28px;
-  padding: 0 14px 0 30px;
+  padding: 0 14px 0 44px;
   border: 0;
   background: transparent;
   color: var(--ui-text);
@@ -539,15 +539,17 @@
 .clusterToggle:hover { background: var(--ui-hover); }
 
 .clusterChevron {
+  flex: none;
   color: var(--ui-text-tertiary);
   transition: transform var(--ui-motion-fast) var(--ui-ease);
 }
 
 .clusterToggle[aria-expanded='true'] .clusterChevron { transform: rotate(90deg); }
 
-.clusterDot { display: flex; align-items: center; justify-content: center; }
+.clusterDot { display: flex; flex: none; align-items: center; justify-content: center; }
 
 .clusterTitle {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   font-size: 13px;
@@ -557,6 +559,8 @@
 }
 
 .clusterMeta {
+  flex: none;
+  max-width: 42%;
   min-width: 0;
   overflow: hidden;
   font-size: 11px;
@@ -586,7 +590,7 @@
   gap: 6px;
   width: 100%;
   height: 24px;
-  padding: 0 14px 0 30px;
+  padding: 0 14px 0 44px;
   border: 0;
   background: transparent;
   color: var(--ui-text-secondary);
@@ -615,7 +619,7 @@
   text-overflow: ellipsis;
 }
 
-.modelSummaryList { padding: 2px 14px 4px 42px; }
+.modelSummaryList { padding: 2px 14px 4px 56px; }
 
 .modelSummaryStep {
   display: flex;
@@ -638,7 +642,7 @@
   gap: 6px;
   width: 100%;
   height: 26px;
-  padding: 0 14px 0 28px;
+  padding: 0 14px 0 56px;
   border: 0;
   background: transparent;
   color: var(--ui-text);
@@ -654,7 +658,7 @@
   box-shadow: inset 2px 0 0 var(--ui-accent-line);
 }
 
-.itemRow[data-indent] { padding-left: 40px; }
+.itemRow[data-indent] { padding-left: 68px; }
 
 .itemIndex {
   font-size: 11px;

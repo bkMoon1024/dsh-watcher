@@ -39,11 +39,10 @@ export function PanelHeader({
           aria-hidden="true"
         />
         {/* Only the coarse state is announced; the ticking label below would
-            otherwise re-announce once per second. */}
+            otherwise re-announce once per second. Idle sessions keep the bar
+            down to the state word. */}
         <span className={css.statusText} aria-live="polite" data-alert={alert ? '' : undefined}>{status}</span>
-        <span className={css.statusNow} aria-hidden="true" title={running ? nowLabel : 'DSH-Watcher'}>
-          {running ? nowLabel : 'DSH-Watcher'}
-        </span>
+        {running ? <span className={css.statusNow} aria-hidden="true" title={nowLabel}>{nowLabel}</span> : null}
       </div>
       <div className={css.iconBar}>
         <button

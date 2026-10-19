@@ -19,7 +19,6 @@ import {
   phaseFilterView,
   phaseMetaText,
   phaseStepRows,
-  showStateTag,
 } from './panel-model.ts'
 import css from './panel.module.css'
 
@@ -126,7 +125,12 @@ export const PhaseSection = memo(function PhaseSection({
           {groupSignals(group).map(signal => (
             <span key={signal.kind} className={css.phaseSignal}>{signal.label}</span>
           ))}
-          {showStateTag(state) ? <span className={css.stateTag} data-state={state}>{OVERVIEW_STATE_LABEL[state]}</span> : null}
+          {/* A failed phase is already the only red marker in the path and its
+              turn header carries the full tag; repeating it on every row is
+              noise. Only states that ask something of the reader stay. */}
+          {state === 'waiting' || state === 'interrupted' || state === 'partial'
+            ? <span className={css.stateTag} data-state={state}>{OVERVIEW_STATE_LABEL[state]}</span>
+            : null}
           <span className={css.phaseMeta}>{phaseMeta}</span>
         </button>
       </header>

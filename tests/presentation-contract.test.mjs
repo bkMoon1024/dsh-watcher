@@ -191,6 +191,16 @@ test('the panel stays one quiet column: status, scale line, then the path', asyn
   assert.match(panelStyles, /\.metrics \{[^}]*display: flex/s)
   assert.doesNotMatch(panelStyles, /\.metrics \{[^}]*border-bottom/s)
   assert.match(watcherStyles, /\.menu \{[\s\S]*?z-index: 1100;/)
+
+  // Toggle rows place a variable number of chips (signals, tags, meta) after
+  // the title. A fixed grid silently wraps the overflow into a second line and
+  // the fixed row height then paints it over the next row, so these rows must
+  // stay on a single flex line.
+  for (const selector of ['phaseToggle', 'clusterToggle', 'stepToggle']) {
+    const block = panelStyles.match(new RegExp(`\\.${selector} \\{([^}]*)\\}`))
+    assert.ok(block, selector)
+    assert.match(block[1], /display: flex/)
+  }
 })
 
 test('each settings section keeps a mounted tabpanel too', async () => {
