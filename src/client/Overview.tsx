@@ -11,6 +11,12 @@ import {
   type DisclosureState,
 } from './disclosure-depth.ts'
 import { stepTimelineEntries } from './step-timeline.ts'
+import {
+  groupTitleMatches,
+  itemMatchesFilter,
+  pathFilterActive,
+  type PathFilter,
+} from './path-filter.ts'
 import css from './Watcher.module.css'
 import { STATUS_LABEL } from './labels.ts'
 import { formatDuration, itemPattern, useLiveClock } from './display.ts'
@@ -119,6 +125,7 @@ export const PhaseOverview = memo(function PhaseOverview({
   observationMode,
   open,
   disclosure,
+  filter,
   onToggle,
   onToggleLayer,
   onToggleReasoning,
@@ -133,6 +140,7 @@ export const PhaseOverview = memo(function PhaseOverview({
   observationMode: ObservationMode
   open: boolean
   disclosure: DisclosureState
+  filter: PathFilter
   onToggle: () => void
   onToggleLayer: (layer: DisclosureLayer, key: string) => void
   onToggleReasoning: (key: string, modelKey: string) => void
@@ -153,11 +161,37 @@ export const PhaseOverview = memo(function PhaseOverview({
     ? Math.min(1, phaseElapsedMs / turnTotalMs)
     : null
   const latestItemId = group.items.at(-1)?.id ?? null
-  const clusters = useMemo(() => clusterWorkItems(group.items.filter(item => item.source !== 'model')), [group])
+  // A narrowed path keeps only the rows the query names. Model stages have no
+  // title to match, so they leave the path while a filter is active; the
+  // occurrence numbers still come from the full group so a record keeps its
+  // identity no matter how the path is narrowed.
+  const filterActive = pathFilterActive(filter)
+  const titleMatch = groupTitleMatches(group, filter)
+  const visibleItemIds = useMemo(() => {
+    if (!pathFilterActive(filter)) return null
+    const ids = new Set<string>()
+    for (const item of group.items) {
+      if (item.source === 'model') continue
+      if (titleMatch || itemMatchesFilter(item, filter)) ids.add(item.id)
+    }
+    return ids
+  }, [group, filter, titleMatch])
+  const clusters = useMemo(() => {
+    const sourceItems = group.items.filter(item => item.source !== 'model')
+    return clusterWorkItems(
+      visibleItemIds === null ? sourceItems : sourceItems.filter(item => visibleItemIds.has(item.id)),
+    )
+  }, [group, visibleItemIds])
   const modelSteps = useMemo(
-    () => group.steps.filter((step): step is WorkStep & { model: ModelStepTrace } => step.model !== null),
-    [group],
+    () => (visibleItemIds === null
+      ? group.steps.filter((step): step is WorkStep & { model: ModelStepTrace } => step.model !== null)
+      : []),
+    [group, visibleItemIds],
   )
+  const matchesNothing = filterActive && !titleMatch && visibleItemIds !== null && visibleItemIds.size === 0
+  // Filtering is a reading intent: the matching rows have to be on screen
+  // without another click, so the phase opens while a filter is active.
+  const effectiveOpen = open || (visibleItemIds !== null && !matchesNothing)
   // Position lookups are per-render today but hot at the 1Hz live clock; index
   // the group once instead of scanning per item.
   const occurrenceNumbers = useMemo(
@@ -171,6 +205,8 @@ export const PhaseOverview = memo(function PhaseOverview({
   }, [group])
   const groupedModelsKey = `${group.id}:model-list`
   const groupedModelsOpen = layerDisclosureOpen(disclosure, 'model', groupedModelsKey)
+
+  if (matchesNothing) return null
 
   return (
     <section
@@ -192,9 +228,9 @@ export const PhaseOverview = memo(function PhaseOverview({
         <button
           type="button"
           className={css.phaseToggle}
-          aria-expanded={open}
+          aria-expanded={effectiveOpen}
           aria-controls={`watcher-phase-body-${group.id}`}
-          aria-label={`${group.title}，${phaseSummary}，${open ? '收起阶段' : '展开阶段'}`}
+          aria-label={`${group.title}，${phaseSummary}，${effectiveOpen ? '收起阶段' : '展开阶段'}`}
           onClick={onToggle}
         >
           <span className={css.phaseMarker} data-state={phaseState} aria-hidden="true" />
@@ -210,12 +246,17 @@ export const PhaseOverview = memo(function PhaseOverview({
         </button>
       </header>
 
-      {open ? (
+      {effectiveOpen ? (
       <div id={`watcher-phase-body-${group.id}`}>
         {observationMode === 'itemized'
           ? (
             <div className={css.stepTimeline} data-observation-mode="itemized">
               {group.steps.map(step => {
+                const timelineEntries = stepTimelineEntries(step)
+                const shownEntries = visibleItemIds === null
+                  ? timelineEntries
+                  : timelineEntries.filter(entry => entry.kind === 'occurrence' && visibleItemIds.has(entry.item.id))
+                if (shownEntries.length === 0) return null
                 const stepLive = isNow && running && step.items.some(item => item.id === latestItemId && item.status === 'running')
                 const stepDuration = formatDuration(stepElapsedMs(step, stepLive, now))
                 const stepOpen = layerDisclosureOpen(disclosure, 'step', step.id)
@@ -223,7 +264,6 @@ export const PhaseOverview = memo(function PhaseOverview({
                 const modelDuration = formatDuration(modelMetrics?.totalMs ?? null)
                 const showStepTotal = stepDuration !== null && stepDuration !== modelDuration
                 const modelOpen = layerDisclosureOpen(disclosure, 'model', step.id)
-                const timelineEntries = stepTimelineEntries(step)
                 return (
                   <section
                     key={step.id}
@@ -252,7 +292,7 @@ export const PhaseOverview = memo(function PhaseOverview({
                     </header>
                     {stepOpen ? (
                     <div id={`watcher-step-body-${step.id}`} className={css.overviewOccurrences}>
-                      {timelineEntries.map(entry => {
+                      {shownEntries.map(entry => {
                         if (entry.kind === 'model') {
                           return (
                             <ModelStage
@@ -429,4 +469,5 @@ export const PhaseOverview = memo(function PhaseOverview({
   && prev.observationMode === next.observationMode
   && prev.open === next.open
   && prev.disclosure === next.disclosure
+  && prev.filter === next.filter
 )

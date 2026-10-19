@@ -122,6 +122,12 @@ The client carries one token layer, `src/client/ui/tokens.module.css`, which ali
 
 Host primitives are used wherever the host already ships one: `Button`, `Input`, `DisclosureRow`, `Tag`, `StateDot`, `MarkdownText` and friends. `ui/SegmentedToggle` mirrors the host segmented recipe for switches that own no tab panel; the host `SegmentedControl` is not used there because its tabs name panels through `aria-controls` and those panels do not exist.
 
+### Panel shell
+
+- The panel is two tabs, `工作路径` and `会话统计`, built on the host `SegmentedControl` with real `*-panel` tabpanels. Statistics and the path no longer share one scroll area: the HUD cannot push the path, and the path owns its own scroll position.
+- The path toolbar carries search (title, tool, phase), a `全部` / `异常` / `等待` status filter, the organize and depth switches, and history paging. Filtering keeps phases that match on title or on any occurrence, auto-expands them, and says so when nothing matches instead of rendering an empty rail.
+- The trigger, status line and follow control stay above both tabs; the resize handles and the remembered panel size are unchanged.
+
 ### Work picture
 
 - One collapsible chapter per Turn; it must never merge across Turn boundaries. Turn headers carry duration and useful totals, not a duplicated status dot.
@@ -131,7 +137,7 @@ Host primitives are used wherever the host already ships one: `Button`, `Input`,
 - Historical model stages default closed. The latest actively streaming model stage defaults open. Provider-exposed reasoning text is a second disclosure below its timing row; explicitly opening it pins its parent model stage open across streaming settlement, and the record never disappears merely because a later tool call arrived.
 - In `逐项`, every tool/message occurrence keeps a stable numbered row. In `归类`, every occurrence remains available under one evidence-backed cluster and keeps the same stable selection identity.
 - Parallel calls retain one Step bracket and separate selectable rows. Retry and iteration labels sit on the exact affected occurrence. A cluster may show `×N` only as a reversible summary whose expanded children prove the N source records.
-- Occurrences already seen by Watcher survive RC8 history-window advancement. Opening Watcher automatically walks the public Session `loadOlder()` pages until the full log is present; a later result replaces the same stable occurrence and never removes or duplicates the running row. While pages are still arriving, whole-session projections expose loaded-versus-total progress and the visible evidence remains explicitly partial.
+- Occurrences already seen by Watcher survive RC8 history-window advancement. History is walked one page at a time: the path toolbar's `载入更早` pulls a single `loadOlder()` page, so a long session can be walked backwards without committing to the whole log, and `载入全部历史` remains the explicit heavier action that walks until the full log is present. A later result replaces the same stable occurrence and never removes or duplicates the running row. While pages are still arriving, whole-session projections expose loaded-versus-total progress and the visible evidence remains explicitly partial.
 - `N 次执行` means distinct recorded occurrences. `重试 N 次` requires the same normalized tool and arguments after a failed or unknown attempt. `迭代 N 版` requires the same target with changed input. `循环 N 次` is forbidden unless the same multi-action path is proven to repeat.
 - User steering, interruptions, turn failures, images/artifacts, and waiting states are first-class when the official snapshot exposes them.
 
@@ -140,10 +146,18 @@ Host primitives are used wherever the host already ships one: `Button`, `Input`,
 - Layer 1 is a plain-language summary and status.
 - Layer 2 is structured evidence: command, arguments, path, duration, exit code, and render-intent result.
 - Layer 3 is complete raw evidence with an explicit disclosure and copy path. Preview caps may collapse the middle, but the complete value remains reachable.
-- Selection opens the inspector as a covering drawer on every width: it slides over the work path and closes back to it, so the path keeps its width and scroll position while the evidence is read.
+- Selection opens the inspector without repeating the path: the header, metrics and evidence tabs describe the selected record, and a `记录 K/M` stepper (`上一条` / `下一条`, arrow keys) walks the group's records in place. The path list is never duplicated inside the drawer.
+- Narrow panels open the inspector as a covering drawer that slides over the work path and closes back to it; a panel dragged past 980px docks it beside the path so both stay visible. The path keeps its width and scroll position either way.
+- Escape is layered: it closes an open inspector first and returns focus to the path; only with no inspector open does it close the panel.
 - Shell results use `TerminalBlock`; reads use `ReadBlock`; file changes use `DiffBlock`; structured objects use `JsonTree`.
 - Text results use the official `MarkdownText` reading pipeline: proportional prose, semantic headings/lists/tables/quotes, inline code, and highlighted fenced code. The Raw tab remains the exact, copyable source and is the fallback whenever users need byte-level evidence.
 - Untrusted Markdown never enters an HTML parser in Watcher. Unsafe protocols, relative links, and raw HTML follow the official primitive's fail-closed policy.
+
+### Settings page
+
+- Four tabs — `概览`, `趋势`, `会话`, `偏好` — each owning one section, instead of one long dashboard. The time-range control is hidden on `偏好`, where it does not apply.
+- Drilldowns open as a dialog over the page: a mask, Escape to close, and focus restored to the card that opened it. They never insert a block that pushes the page down.
+- The session ledger searches by session or model and pages in ten-row steps with a visible total; the scan footnote keeps naming what was skipped.
 
 ### State language
 
@@ -223,7 +237,7 @@ The model/tool figures are diagnostic recorded sums, not slices of a pie: parall
 - Primary task: scan every Step, its model-time decomposition, and every occurrence in the causal work rail while it grows.
 - Secondary task: fold Turn/phase/Step/model levels or switch to same-kind analysis without losing source identity.
 - Tertiary task: select one occurrence, inspect it, then copy or expand complete raw evidence.
-- Navigation model: header trigger → work picture → observation mode → Turn → phase → Step → model stage / reasoning attempt or execution → structured/raw evidence.
+- Navigation model: header trigger → panel tab (`工作路径` / `会话统计`) → path toolbar (search, status, organize, depth, history) → Turn → phase → Step → model stage / reasoning attempt or execution → inspector (record stepper) → structured/raw evidence. The settings section is a separate surface with its own four tabs.
 - Required states: empty, opening, following, pinned/unread, expanded/collapsed, itemized/grouped, model-waiting, reasoning-streaming, reasoning-settled, reasoning-content-without-timing, reasoning-unavailable, running, parallel, returned-neutral, success, failure, waiting-user, interrupted, partial-history, and reduced-motion.
 
 ## Taste Signature

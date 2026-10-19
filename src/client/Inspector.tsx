@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   DiffBlock,
   IconCheckOutlineRegular,
+  IconChevronLeftOutlineRegular,
   IconChevronRightOutlineRegular,
   IconCopyOutlineRegular,
   JsonTree,
@@ -11,7 +12,7 @@ import {
   writeClipboard,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { WorkGroup, WorkItem, WorkPresentation } from '../observation/fold.ts'
-import { groupElapsedMs, itemElapsedMs, stepElapsedMs } from '../observation/performance.ts'
+import { groupElapsedMs, itemElapsedMs } from '../observation/performance.ts'
 import css from './Watcher.module.css'
 import {
   DIFF_LABELS,
@@ -121,7 +122,8 @@ export function ExecutionInspector({
   live,
   now,
   closing,
-  onSelectItem,
+  position,
+  onStep,
   onBack,
   onExited,
 }: {
@@ -130,7 +132,8 @@ export function ExecutionInspector({
   live: boolean
   now: number
   closing: boolean
-  onSelectItem: (id: string) => void
+  position: { index: number; total: number }
+  onStep: (direction: -1 | 1) => void
   onBack: () => void
   onExited: () => void
 }) {
@@ -163,16 +166,43 @@ export function ExecutionInspector({
         : undefined}
     >
       <header className={css.inspectorHeader}>
-        <button
-          type="button"
-          className={css.inspectorBack}
-          onClick={onBack}
-          aria-label="返回工作路径"
-          title="返回工作路径"
-        >
-          <IconChevronRightOutlineRegular size={13} aria-hidden="true" />
-          工作路径
-        </button>
+        <div className={css.inspectorLocator}>
+          <button
+            type="button"
+            className={css.inspectorBack}
+            onClick={onBack}
+            aria-label="返回工作路径"
+            title="返回工作路径"
+          >
+            <IconChevronRightOutlineRegular size={13} aria-hidden="true" />
+            工作路径
+          </button>
+          <div className={css.recordStepper} role="group" aria-label="执行记录切换">
+            <button
+              type="button"
+              className={css.recordStepButton}
+              onClick={() => onStep(-1)}
+              disabled={position.index <= 0}
+              aria-label="上一条记录"
+              title="上一条记录"
+            >
+              <IconChevronLeftOutlineRegular size={14} aria-hidden="true" />
+            </button>
+            <span className={css.recordPosition} aria-live="polite">
+              记录 {position.index + 1}/{position.total}
+            </span>
+            <button
+              type="button"
+              className={css.recordStepButton}
+              onClick={() => onStep(1)}
+              disabled={position.index >= position.total - 1}
+              aria-label="下一条记录"
+              title="下一条记录"
+            >
+              <IconChevronRightOutlineRegular size={14} aria-hidden="true" />
+            </button>
+          </div>
+        </div>
         <div className={css.statusLine} data-status={group.status}>
           <StatusMark status={group.status} />
           <span>{groupStatusLabel(group)}</span>
@@ -191,54 +221,6 @@ export function ExecutionInspector({
       </header>
 
       <div className={css.inspectorBody}>
-        <section className={css.executionSection} aria-labelledby={`execution-title-${group.id}`}>
-          <div className={css.sectionHeading}>
-            <h3 id={`execution-title-${group.id}`}>执行路径</h3>
-            <span>{group.items.length} 条记录</span>
-          </div>
-          <div className={css.executionList}>
-            {group.steps.map((step, stepIndex) => {
-              const stepLive = live && stepIndex === group.steps.length - 1
-              const stepDuration = formatDuration(stepElapsedMs(step, stepLive, now))
-              return <div key={step.id} className={css.stepBlock} data-parallel={step.parallel ? '' : undefined}>
-                <div className={css.stepHeading}>
-                  <span>步骤 {step.step || '—'}</span>
-                  <span className={css.stepSignals}>
-                    {stepDuration === null ? null : <span className={css.stepDuration}>{stepDuration}</span>}
-                    {step.parallel ? <span className={css.parallelLabel}>{step.executionCount} 项并行</span> : null}
-                  </span>
-                </div>
-                <div className={css.occurrences}>
-                  {step.items.map((item, itemIndex) => {
-                    const itemDuration = formatDuration(itemElapsedMs(item, stepLive && item.status === 'running', now))
-                    return <button
-                      key={item.id}
-                      type="button"
-                      className={css.occurrence}
-                      data-selected={item.id === selected.id ? '' : undefined}
-                      data-status={item.status}
-                      aria-pressed={item.id === selected.id}
-                      onClick={() => onSelectItem(item.id)}
-                    >
-                      <StatusMark status={item.status} className={css.occurrenceDot} />
-                      <span className={css.occurrenceCopy}>
-                        <span className={css.occurrenceTitle}>{item.title}</span>
-                        <span className={css.occurrenceMeta}>
-                          {item.toolName ?? item.source}
-                          {step.items.length > 1 ? ` · 分支 ${itemIndex + 1}` : ''}
-                          {itemPattern(item) === null ? '' : ` · ${itemPattern(item)}`}
-                        </span>
-                      </span>
-                      {itemDuration === null ? null : <span className={css.occurrenceDuration}>{itemDuration}</span>}
-                      <IconChevronRightOutlineRegular size={12} className={css.occurrenceChevron} />
-                    </button>
-                  })}
-                </div>
-              </div>
-            })}
-          </div>
-        </section>
-
         <section className={css.detailSection} aria-labelledby={`detail-title-${selected.id}`}>
           <div className={css.detailHeader}>
             <div className={css.detailIdentity}>
@@ -265,9 +247,12 @@ export function ExecutionInspector({
             ] as const).map(([id, label]) => (
               <button
                 key={id}
+                id={`inspector-tab-${id}`}
                 type="button"
                 role="tab"
                 aria-selected={tab === id}
+                aria-controls={`inspector-tabpanel-${id}`}
+                tabIndex={tab === id ? 0 : -1}
                 className={css.tab}
                 data-active={tab === id ? '' : undefined}
                 onClick={() => setTab(id)}
@@ -277,7 +262,12 @@ export function ExecutionInspector({
             ))}
           </div>
 
-          <div className={css.tabPanel} role="tabpanel">
+          <div
+            id={`inspector-tabpanel-${tab}`}
+            className={css.tabPanel}
+            role="tabpanel"
+            aria-labelledby={`inspector-tab-${tab}`}
+          >
             {tab === 'result' ? <ResultPresentation presentation={selected.presentation} /> : null}
             {tab === 'input'
               ? hasInput

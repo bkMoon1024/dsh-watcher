@@ -74,6 +74,17 @@ The interaction contract lives in [DESIGN.md](./DESIGN.md). MIT.
 - A failed scan reports itself instead of rendering like an empty ledger, a first scan is told apart from “nothing recorded yet”, and sessions the scan left out are named in the totals footnote.
 - Dead styles removed: the history-notice and session-timing blocks plus ~30 unreferenced classes. The panel's drag/resize/clamp logic moved into `panel-geometry.ts` (`usePanelGeometry`).
 
+- **The panel is two real tabs.** 工作路径 and 会话统计 are built on the host `SegmentedControl` with matching `*-panel` tabpanels. Statistics used to sit above the work path in the same scroll area, so a large HUD cost the path on every interaction and the path could not own the scroll position.
+- **A path toolbar.** Search (title, tool, phase), a 全部/异常/等待 status filter, and a history control that walks backwards one page at a time (`loadOlderPage`), with 载入全部历史 kept as the heavier secondary action. Filtering narrows phases to their matching occurrences and auto-expands them; a search with no hits says so instead of showing an empty rail.
+- **The inspector no longer repeats the path.** It keeps the header, metrics and 结果/输入/原始 tabs, and gains a record stepper — 上一条 / 下一条 plus a `记录 K/M` position, wired to the arrow keys — so records can be walked without going back to the path. The detail tabs now carry `id`/`aria-controls`/`tabpanel` semantics.
+- **Escape is layered.** With a record open it closes only the inspector and returns focus to the path; with none open it closes the panel. Arrow keys move between records while the inspector is open, except inside inputs and editable content.
+- **Wide panels split.** Past 980px the inspector docks beside the path instead of covering it; narrower panels keep the overlay drawer. The threshold is measured on the panel with a `ResizeObserver`, not a viewport media query, because the panel can be dragged wider than the window breakpoints suggest.
+- **The settings page is four tabs** — 概览 / 趋势 / 会话 / 偏好 — instead of one long dashboard. The time-range control hides on 偏好, and drilldowns open as a dialog over the page (backdrop, Escape, focus restored to the card that opened it) instead of inserting a block that pushed the rest of the page down.
+- **The session ledger** gained a search box, a 显示更多会话 pager (ten rows at a time) and a total-count footnote; the sort control stays in the header row.
+- **The path filter and the panel tab are component state**, so switching sessions resets them with the rest of the panel; `locateEvidence` switches back to 工作路径 and clears the filter before scrolling to the failing record.
+- **Fixed a dangling selector list** in `Watcher.module.css`: the focus-visible rule for the unread button and the disclosure toggles had lost its declaration block (swallowed by `.railViewport`), so those controls had no visible focus ring. The rule is restored and the new stepper and back buttons join it.
+- **Dead styles removed.** The inspector no longer renders its execution list, so its 14 unreferenced classes are gone (`.executionSection`, `.executionList`, `.stepBlock`, `.occurrence*`, …); the contract test now asserts the durations where they render (`.overviewStepSignals`, `.overviewOccurrenceDuration`).
+
 ## What's new in 0.6.3
 
 - **The panel is a solid instrument.** Frosted glass is gone: opaque body, 1px scribe border, top bevel highlight and a layered shadow stack; the chart tooltip and timing card share the same surface variables.

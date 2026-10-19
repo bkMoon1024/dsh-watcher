@@ -38,6 +38,9 @@ export function apply(ctx: ClientContext) {
         | undefined
       if (session === undefined) throw new Error(`dsh-watcher: session "${sessionId}" is unavailable`)
       return {
+        // One page at a time, so a long session can be walked backwards
+        // without committing to the whole history (or hitting its page limit).
+        loadOlderPage: () => session.loadOlder(),
         loadAllHistory: signal => loadCompleteHistory({
           signal,
           loadOlder: () => session.loadOlder(),

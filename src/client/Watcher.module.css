@@ -248,8 +248,8 @@
   white-space: nowrap;
 }
 
-/* 控制行：计数与视图分段压在下沉内衬上 */
-.controlRow {
+/* 面板顶层分页：工作路径 / 会话统计，计数贴在分页行右侧 */
+.panelTabRow {
   display: flex;
   flex: none;
   flex-wrap: wrap;
@@ -260,6 +260,76 @@
   padding: 4px 14px;
   background: var(--ui-surface-raised);
   border-top: 1px solid var(--ui-line);
+}
+
+/* 两个分页共享的弹性列：工具栏固定，内容自己滚 */
+.pathPanel,
+.statsPanel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.statsPanel {
+  overflow: auto;
+  padding: 12px 14px 18px;
+}
+
+.pathToolbar {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--ui-line);
+}
+
+.filterInput {
+  flex: 1 1 160px;
+  min-width: 132px;
+  max-width: 240px;
+}
+
+.pathHistory {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  color: var(--ui-text-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Incremental paging is the primary history affordance; loading everything at
+ * once stays available but reads as the secondary, heavier action. */
+.loadOlderBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--ui-line);
+  background: var(--ui-surface);
+  color: var(--ui-text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  line-height: 16px;
+  transition:
+    background-color var(--ui-motion-fast) var(--ui-ease),
+    color var(--ui-motion-fast) var(--ui-ease);
+}
+
+.loadOlderBtn:hover:not(:disabled) {
+  background: var(--ui-hover);
+  color: var(--ui-text);
+}
+
+.loadOlderBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .controlCounts {
@@ -353,6 +423,9 @@
 }
 
 .unread:hover { background: var(--ui-ghost-active-hover); }
+
+/* These controls sit inside a scroll container, so they carry the host focus
+ * ring themselves instead of relying on the browser default. */
 .unread:focus-visible,
 .turnToggle:focus-visible,
 .phaseToggle:focus-visible,
@@ -361,6 +434,11 @@
 .modelStageToggle:focus-visible,
 .reasoningToggle:focus-visible,
 .groupedModelToggle:focus-visible,
+.recordStepButton:focus-visible,
+.inspectorBack:focus-visible {
+  outline: var(--ui-focus-width) solid var(--ui-focus-ring);
+  outline-offset: 1px;
+}
 
 .railViewport {
   flex: 1;
@@ -609,12 +687,6 @@
   background: var(--ui-surface);
 }
 
-.occurrenceCopy {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-}
-
 .phaseTitleLine {
   display: flex;
   align-items: center;
@@ -695,21 +767,6 @@
 .overviewTag[data-state='failure'],
 .overviewTag[data-state='interrupted'] { color: var(--ui-state-error); }
 .overviewTag[data-state='partial'] { color: var(--ui-text-tertiary); }
-
-.occurrenceChevron {
-  flex: none;
-  color: var(--ui-text-dimmed);
-  opacity: 0;
-  transform: translateX(-2px);
-  transition: opacity var(--ui-motion-fast) ease, transform var(--ui-motion-fast) ease;
-}
-
-.occurrence:hover .occurrenceChevron,
-.occurrence[data-selected] .occurrenceChevron,
-.occurrence:focus-visible .occurrenceChevron {
-  opacity: 1;
-  transform: translateX(0);
-}
 
 .stepTimeline {
   position: relative;
@@ -1378,6 +1435,55 @@
   border-bottom: 1px solid var(--ui-line);
 }
 
+/* 定位行：返回路径 + 记录步进器；查看一条记录不再需要回到列表里找下一条 */
+.inspectorLocator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.recordStepper {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+}
+
+.recordStepButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--ui-radius-row);
+  background: transparent;
+  color: var(--ui-text-secondary);
+  cursor: pointer;
+  transition:
+    background-color var(--ui-motion-fast) var(--ui-ease),
+    color var(--ui-motion-fast) var(--ui-ease);
+}
+
+.recordStepButton:hover:not(:disabled) {
+  background: var(--ui-hover);
+  color: var(--ui-text);
+}
+
+.recordStepButton:disabled { opacity: .35; cursor: default; }
+
+.recordPosition {
+  min-width: 78px;
+  color: var(--ui-text-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
 /* Docked layout keeps this control visible: it is the only way back to the
  * work path, so hiding it left the inspector permanently open. */
 .inspectorBack {
@@ -1385,7 +1491,7 @@
   align-items: center;
   gap: 5px;
   min-height: 28px;
-  margin: -4px 0 8px -6px;
+  margin: 0 0 0 -6px;
   padding: 0 7px 0 5px;
   border: 0;
   border-radius: 6px;
@@ -1474,139 +1580,9 @@
   --dsh-scrollbar-thumb-hover: var(--ui-scrollbar-hover);
 }
 
-.executionSection {
-  padding: 14px 16px 16px;
-  border-bottom: 1px solid var(--ui-line);
-}
-
-.sectionHeading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.sectionHeading h3 {
-  margin: 0;
-  color: var(--ui-text-secondary);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 20px;
-}
-
-.sectionHeading > span {
-  color: var(--ui-text-tertiary);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-.executionList {
-  max-height: 188px;
-  padding-right: 2px;
-  overflow: auto;
-}
-
-.stepBlock + .stepBlock {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--ui-line);
-}
-
-.stepHeading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-height: 22px;
-  padding: 0 3px;
-  color: var(--ui-text-tertiary);
-  font-family: var(--ui-font-mono);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-.stepSignals {
-  display: inline-flex;
-  min-width: 0;
-  align-items: center;
-  gap: 6px;
-}
-
-.stepDuration {
-  color: var(--ui-text-secondary);
-  font-family: var(--ui-font);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
 .parallelLabel {
   color: var(--ui-accent);
   font-family: var(--ui-font);
-}
-
-.occurrences {
-  position: relative;
-  margin-top: 4px;
-}
-
-.stepBlock[data-parallel] .occurrences {
-  padding-left: 10px;
-  border-left: 1px solid var(--ui-accent);
-}
-
-.occurrence {
-  display: grid;
-  grid-template-columns: 10px minmax(0, 1fr) auto 13px;
-  align-items: center;
-  gap: 8px;
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 46px;
-  padding: 6px 7px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background-color 140ms ease, border-color 140ms ease;
-}
-
-.occurrenceDuration {
-  color: var(--ui-text-tertiary);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  line-height: 18px;
-  white-space: nowrap;
-}
-
-.occurrence + .occurrence { margin-top: 2px; }
-.occurrence:hover { background: var(--ui-hover); }
-.occurrence[data-selected] {
-  border-color: var(--ui-ghost-active-line);
-  background: var(--ui-ghost-active-fill);
-}
-
-.occurrenceTitle {
-  overflow: hidden;
-  color: var(--ui-text);
-  font-size: 13px;
-  font-weight: 550;
-  line-height: 19px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.occurrenceMeta {
-  overflow: hidden;
-  color: var(--ui-text-tertiary);
-  font-family: var(--ui-font-mono);
-  font-size: 12px;
-  line-height: 18px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .detailSection { padding: 16px; }
@@ -1827,9 +1803,7 @@
   .modelStageChevron,
   .reasoningChevron,
   .groupedModelChevron,
-  .occurrence,
-  .overviewOccurrenceChevron,
-  .occurrenceChevron {
+  .overviewOccurrenceChevron {
     transition-duration: .01ms;
   }
 
@@ -1887,7 +1861,6 @@
    * control reads as a back chevron instead of the docked collapse chevron. */
   .inspectorBack svg { transform: rotate(180deg); }
   .inspectorHeader { padding-top: 14px; }
-  .executionList { max-height: 150px; }
 }
 
 @media (max-width: 520px) {
@@ -1895,7 +1868,6 @@
   .turns { padding-inline: 6px; }
   .groupBadges span:nth-child(n+2) { display: none; }
   .inspectorHeader,
-  .executionSection,
   .detailSection { padding-inline: 12px; }
   .detailHeader { grid-template-columns: 1fr; }
   .metrics { grid-template-columns: auto 1fr; }
@@ -1908,4 +1880,31 @@
   .groupedModelToggle > span { display: grid; gap: 0; }
   .groupedModelToggle small { white-space: normal; }
   .groupedModelList { padding-left: 12px; }
+}
+
+/* 宽面板把详情停靠在右侧：路径与记录同时可见，不再互相覆盖。
+ * data-split 由脚本按面板实测宽度写入，窄面板仍走覆盖式抽屉。
+ * 详情在 DOM 里排在路径之前（覆盖模式靠绝对定位），横向布局时用 order 换回右侧。 */
+.menu[data-split]:has(.inspector) {
+  flex-direction: row;
+}
+
+.menu[data-split]:has(.inspector) .workPicture {
+  display: flex;
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  order: 1;
+}
+
+.menu[data-split]:has(.inspector) .inspector {
+  position: relative;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  flex: none;
+  width: min(380px, 46%);
+  border-left: 1px solid var(--ui-line);
+  box-shadow: none;
+  order: 2;
 }

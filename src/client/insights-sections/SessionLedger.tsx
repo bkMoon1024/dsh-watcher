@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { IconSearchOutlineRegular, Input } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InsightsAnalytics, SessionSort, SessionsScan } from '../insights-analytics.ts'
 import css from '../Insights.module.css'
 import { SegmentedToggle } from '../ui/SegmentedToggle.tsx'
 import { fmtCompact, routeLabel } from '../insights-shared.tsx'
+
+const LEDGER_PAGE = 10
 
 /** Top conversations ranked by the selected dimension, expandable in place. */
 export function SessionLedger({ analytics, sessions, sessionSort, setSessionSort }: {
@@ -12,6 +15,19 @@ export function SessionLedger({ analytics, sessions, sessionSort, setSessionSort
   setSessionSort: (next: SessionSort) => void
 }) {
   const [openSessionId, setOpenSessionId] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+  const [limit, setLimit] = useState(LEDGER_PAGE)
+  const rows = useMemo(() => {
+    const all = (analytics?.sortedSessions ?? []) as any[]
+    const needle = query.trim().toLowerCase()
+    if (needle === '') return all
+    return all.filter((row) => {
+      const model = String(routeLabel(row.value?.models?.[0]) ?? '')
+      return row.sessionId.toLowerCase().includes(needle) || model.toLowerCase().includes(needle)
+    })
+  }, [analytics, query])
+  const shown = rows.slice(0, limit)
+  const maxTokens = Math.max(1, analytics?.maxSessionTokens ?? 1)
   return (
     <>
       {/* 重点对话账单：严格按选定维度降序排序！ */}
@@ -23,21 +39,35 @@ export function SessionLedger({ analytics, sessions, sessionSort, setSessionSort
               {sessionSort === 'tokens' && '按 Token 消耗由高到低严格排序'}
               {sessionSort === 'time' && '按执行总耗时由长到短严格排序'}
               {sessionSort === 'errors' && '按报错与重试次数降序排查'}
+              {rows.length > 0 ? ` · 共 ${rows.length} 个会话` : ''}
             </span>
           </div>
-          <SegmentedToggle
-            label="对话账单排序切换"
-            value={sessionSort}
-            onChange={setSessionSort}
-            options={[
-              { value: 'tokens', label: 'Token 消耗 ↓' },
-              { value: 'time', label: '总耗时 ↓' },
-              { value: 'errors', label: '故障数 ↓' },
-            ]}
-          />
+          <div className={css.ledgerControls}>
+            <Input
+              className={css.ledgerSearch}
+              icon={<IconSearchOutlineRegular size={14} />}
+              value={query}
+              onChange={event => { setQuery(event.target.value); setLimit(LEDGER_PAGE) }}
+              placeholder="搜索会话 ID 或模型"
+              aria-label="搜索会话"
+            />
+            <SegmentedToggle
+              label="对话账单排序切换"
+              value={sessionSort}
+              onChange={setSessionSort}
+              options={[
+                { value: 'tokens', label: 'Token 消耗 ↓' },
+                { value: 'time', label: '总耗时 ↓' },
+                { value: 'errors', label: '故障数 ↓' },
+              ]}
+            />
+          </div>
         </div>
 
         {sessions && sessions.rows.length > 0 ? (
+          rows.length === 0 ? (
+            <div className={css.emptyScan}>没有匹配「{query.trim()}」的会话。</div>
+          ) : (
           <div className={css.sessionTableBox}>
             <div className={css.sessionTableHeader}>
               <span>排名 · 会话ID</span>
@@ -47,7 +77,7 @@ export function SessionLedger({ analytics, sessions, sessionSort, setSessionSort
               <span className={css.cellCenter}>运行状态</span>
               <span />
             </div>
-            {analytics?.sortedSessions.slice(0, 10).map((row: any, idx: number) => {
+            {shown.map((row: any, idx: number) => {
               const val = row.value
               const isOpen = openSessionId === row.sessionId
               const errCount = val.totals.toolErrors ?? 0
@@ -59,7 +89,7 @@ export function SessionLedger({ analytics, sessions, sessionSort, setSessionSort
               const status = errCount > 0
                 ? `${errCount} 次报错`
                 : retryCount > 0 ? `${retryCount} 次重试` : '顺畅'
-              const tokenBarPct = Math.max(4, Math.round(((val.totals.tokens ?? 0) / analytics.maxSessionTokens) * 100))
+              const tokenBarPct = Math.max(4, Math.round(((val.totals.tokens ?? 0) / maxTokens) * 100))
               return (
                 <div key={row.sessionId} className={`${css.sessionItemRow} ${isOpen ? css.sessionItemOpen : ''}`}>
                   <button
@@ -97,7 +127,19 @@ export function SessionLedger({ analytics, sessions, sessionSort, setSessionSort
                 </div>
               )
             })}
+            {rows.length > shown.length
+              ? (
+                <button
+                  type="button"
+                  className={css.ledgerMore}
+                  onClick={() => setLimit(current => current + LEDGER_PAGE)}
+                >
+                  显示更多会话（还有 {rows.length - shown.length} 个）
+                </button>
+              )
+              : null}
           </div>
+          )
         ) : sessions === null ? (
           <div className={css.emptyScan}>正在读取本地会话…</div>
         ) : (

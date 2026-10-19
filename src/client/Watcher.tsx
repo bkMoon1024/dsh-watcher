@@ -3,9 +3,13 @@ import { createPortal } from 'react-dom'
 import type {} from '@deepseek-ai/dsh-client-ui-chat/client'
 import type {} from '@deepseek-ai/dsh-session-stats/client'
 import {
+  Button,
   IconChevronRightOutlineRegular,
   IconRefreshOutlineRegular,
+  IconSearchOutlineRegular,
+  Input,
   Pill,
+  SegmentedControl,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
@@ -59,6 +63,13 @@ import {
 import { formatDuration, turnDuration, useLiveClock } from './display.ts'
 import { ExecutionInspector, type DetailTab } from './Inspector.tsx'
 import { PhaseOverview, showOverviewTag } from './Overview.tsx'
+import {
+  EMPTY_PATH_FILTER,
+  groupMatchesFilter,
+  pathFilterActive,
+  type PathFilter,
+  type PathStatusFilter,
+} from './path-filter.ts'
 import type { ObservationMode } from './view-mode.ts'
 import {
   chooseDisclosureDepth,
@@ -74,6 +85,8 @@ import {
 } from './disclosure-depth.ts'
 
 export interface WatcherInjected {
+  /** Pull a single older page; the caller decides how far back to walk. */
+  loadOlderPage: () => Promise<void>
   loadAllHistory: (signal: AbortSignal) => Promise<CompleteHistoryResult>
 }
 
@@ -84,6 +97,14 @@ type HistoryLoadState =
   | { kind: 'loading' }
   | { kind: 'complete' }
   | { kind: 'error'; message: string }
+
+/**
+ * The panel has two jobs and they compete for the same scroll: reading the work
+ * path and reading the session ledger. Keeping them as sibling tabs means the
+ * path stops paying for the ledger's render and the ledger gets the full body
+ * instead of a strip above the rail.
+ */
+type PanelTab = 'path' | 'stats'
 
 /**
  * Mirrors the docked inspector choreography in `Watcher.module.css`: the detail
@@ -157,6 +178,7 @@ function ReadyWatcher({
   useSessionStatus,
   useProjection,
   sessionId,
+  loadOlderPage,
   loadAllHistory,
   chat,
   views,
@@ -221,6 +243,13 @@ function ReadyWatcher({
   const [observationMode, setObservationMode] = useState<ObservationMode>('itemized')
   const [disclosure, setDisclosure] = useState(createDisclosureState)
   const [historyLoad, setHistoryLoad] = useState<HistoryLoadState>({ kind: 'idle' })
+  const [olderLoading, setOlderLoading] = useState(false)
+  const [panelTab, setPanelTab] = useState<PanelTab>('path')
+  const [pathFilter, setPathFilter] = useState<PathFilter>(EMPTY_PATH_FILTER)
+  const filterActive = pathFilterActive(pathFilter)
+  // A wide panel can show the work path and the open record side by side;
+  // narrower ones keep the overlay drawer so neither column gets crushed.
+  const [splitView, setSplitView] = useState(false)
   const now = useLiveClock(open && picture.running)
   const followRef = useRef(createFollow())
   const rootRef = useRef<HTMLDivElement>(null)
@@ -242,19 +271,27 @@ function ReadyWatcher({
       if (panelRef.current?.contains(event.target) === true) return
       setOpen(false)
     }
-    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      event.preventDefault()
-      setOpen(false)
-      triggerRef.current?.focus()
-    }
     document.addEventListener('pointerdown', closeOutside)
-    document.addEventListener('keydown', closeOnEscape)
     return () => {
       document.removeEventListener('pointerdown', closeOutside)
-      document.removeEventListener('keydown', closeOnEscape)
     }
   }, [open])
+
+  // The split threshold is a property of the panel, not the viewport: the panel
+  // can be dragged wider than the window's breakpoints suggest. It stays above
+  // the default panel width (760px) so the default layout keeps the overlay
+  // drawer; only a deliberately widened panel earns the second column.
+  useEffect(() => {
+    const panel = open ? panelRef.current : null
+    if (panel === null) return
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (entry === undefined) return
+      setSplitView(entry.contentRect.width >= 980)
+    })
+    observer.observe(panel)
+    return () => observer.disconnect()
+  }, [open, panelRef])
 
   useLayoutEffect(() => {
     historyAbortRef.current?.abort()
@@ -289,6 +326,11 @@ function ReadyWatcher({
   }, [ui.follow, latestActivityKey, observationMode, open])
 
   const selected = ui.selectedId === null ? undefined : picture.nodes.find(group => group.id === ui.selectedId)
+  const selectionItems = selected?.items ?? []
+  const selectedIndex = selected === undefined
+    ? -1
+    : Math.max(0, selected.items.findIndex(item => item.id === selectedItemId))
+  const inspectorPosition = { index: selectedIndex, total: selectionItems.length }
   const latestTurnNumber = picture.turns.at(-1)?.turn ?? null
   const latestPerformance = performanceByTurn.get(latestTurnNumber ?? -1)
   const liveTokensPerSecond = latestPerformance?.throughput.kind === 'measured'
@@ -321,6 +363,14 @@ function ReadyWatcher({
           : (open ? picture.nodes.length > 0 : !snapshot.blank) ? '就绪' : '待命'
   const nowLabel = picture.now.label || (picture.nodes.length > 0 ? '执行路径已就绪' : '等待指令')
 
+  // Filtering narrows the path instead of hiding it: a turn survives when any
+  // of its groups does, and an active filter opens the turns it kept so the
+  // matches are not hidden behind collapsed headers.
+  const visibleTurns = filterActive
+    ? picture.turns.filter(turn => turn.groups.some(group => groupMatchesFilter(group, pathFilter)))
+    : picture.turns
+  const noFilterMatch = filterActive && visibleTurns.length === 0
+
   const selectItem = (group: WorkGroup, item: WorkItem) => {
     clearInspectorExit()
     geometry.pinFrame()
@@ -330,12 +380,60 @@ function ReadyWatcher({
   }
 
   /**
+   * A long run is reviewed record by record, not by re-finding the next row in
+   * the path: step the inspector through the group it was opened from.
+   */
+  const stepSelection = (direction: -1 | 1) => {
+    if (selected === undefined) return
+    const items = selected.items
+    const index = items.findIndex(item => item.id === selectedItemId)
+    const base = index < 0 ? (direction > 0 ? -1 : 0) : index
+    const next = items[base + direction]
+    if (next === undefined) return
+    selectItem(selected, next)
+  }
+
+  // Escape peels one layer at a time: the open detail first, then the panel.
+  // Arrow keys move between the records of the open detail, but never while a
+  // text field has focus.
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        if (selected !== undefined && !inspectorClosing) {
+          closeInspector()
+          return
+        }
+        setOpen(false)
+        triggerRef.current?.focus()
+        return
+      }
+      if (selected === undefined || inspectorClosing) return
+      const target = event.target
+      if (target instanceof HTMLElement
+        && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+        event.preventDefault()
+        stepSelection(1)
+      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+        event.preventDefault()
+        stepSelection(-1)
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  })
+
+  /**
    * "定位现场" must end at the failing work item, not just somewhere near the
    * turn: opening the inspector on that exact item is the whole point of the
    * affordance. A finding whose step can't be matched still lands on its turn.
    */
   const locateEvidence = (e: { turn: number; steps: number[]; seqs: number[] }) => {
     pinForDisclosure()
+    setPanelTab('path')
+    setPathFilter(EMPTY_PATH_FILTER)
     setDisclosure(chooseDisclosureDepth('detail'))
     const turn = picture.turns.find(t => t.turn === e.turn)
     const group = turn?.groups.find(g => g.items.some(i =>
@@ -413,6 +511,20 @@ function ReadyWatcher({
     setDisclosure(chooseDisclosureDepth(depth))
   }
 
+  const startOlderLoad = () => {
+    if (olderLoading || !snapshot.hasMore) return
+    setOlderLoading(true)
+    setHistoryLoad({ kind: 'idle' })
+    void loadOlderPage()
+      .catch((error: unknown) => {
+        setHistoryLoad({
+          kind: 'error',
+          message: error instanceof Error ? error.message : String(error),
+        })
+      })
+      .finally(() => setOlderLoading(false))
+  }
+
   const startHistoryLoad = () => {
     if (historyLoad.kind === 'loading' || historyLoad.kind === 'complete') return
     historyAbortRef.current?.abort()
@@ -478,6 +590,7 @@ function ReadyWatcher({
             style={geometry.style}
             data-sized={geometry.sized ? '' : undefined}
             data-resizing={geometry.resizing ? '' : undefined}
+            data-split={splitView && selected !== undefined ? '' : undefined}
             role="dialog"
             aria-modal="false"
             aria-label="Watcher 工作图"
@@ -493,7 +606,8 @@ function ReadyWatcher({
                   live={picture.running && selected.id === lastGroupId}
                   now={now}
                   closing={inspectorClosing}
-                  onSelectItem={setSelectedItemId}
+                  position={inspectorPosition}
+                  onStep={stepSelection}
                   onBack={() => closeInspector()}
                   onExited={finishInspectorExit}
                 />
@@ -529,7 +643,17 @@ function ReadyWatcher({
                     {ui.follow ? '自动跟随' : '浏览历史'}
                   </Pill>
                 </div>
-                <div className={css.controlRow} aria-label="路径视图设置">
+                <div className={css.panelTabRow}>
+                  <SegmentedControl
+                    id="watcher-panel"
+                    label="Watcher 视图"
+                    value={panelTab}
+                    onChange={setPanelTab}
+                    options={[
+                      { value: 'path', label: '工作路径' },
+                      { value: 'stats', label: '会话统计' },
+                    ]}
+                  />
                   <div className={css.controlCounts}>
                     <span>
                       {snapshot.hasMore && totalTurnCount > picture.turnCount
@@ -542,201 +666,269 @@ function ReadyWatcher({
                         : `${picture.stepCount} 步`}
                     </span>
                     <span>{picture.actionCount} 次执行</span>
-                    {snapshot.hasMore || historyLoad.kind === 'loading' || historyLoad.kind === 'error' ? (
-                      <button
-                        type="button"
-                        className={css.loadAllInlineBtn}
-                        onClick={startHistoryLoad}
-                        disabled={historyLoad.kind === 'loading'}
-                      >
-                        {historyLoad.kind === 'loading' ? '正在补齐历史…' : historyLoad.kind === 'error' ? '重试载入' : '载入全部历史 →'}
-                      </button>
-                    ) : null}
-                    {historyLoad.kind === 'loading' || historyLoad.kind === 'error' ? (
-                      <span role="status">{historyLoad.kind === 'error' ? historyLoad.message : `已载入 ${historyProgress}`}</span>
-                    ) : null}
-                  </div>
-                  <div className={css.controlViews}>
-                    <div className={css.viewControl}>
-                      <span className={css.viewToolbarLabel}>组织</span>
-                      <SegmentedToggle
-                        label="路径组织方式"
-                        value={observationMode}
-                        onChange={chooseObservationMode}
-                        options={[
-                          { value: 'itemized', label: '逐项', title: '按时间顺序展示每个步骤和每次执行' },
-                          { value: 'grouped', label: '归类', title: '按同一目标或完全相同的指令归类，展开仍可查看原始执行' },
-                        ]}
-                      />
-                    </div>
-                    <div className={css.viewControl}>
-                      <span className={css.viewToolbarLabel}>层级</span>
-                      <SegmentedToggle
-                        label="路径展开深度"
-                        value={disclosure.depth}
-                        onChange={chooseDepth}
-                        options={[
-                          { value: 'overview', label: '概览', title: '展开当前轮次，展示阶段概览；阶段内部保持收起' },
-                          { value: 'detail', label: '详情', title: '展开所有轮次、阶段、步骤、模型与推理记录' },
-                        ]}
-                      />
-                    </div>
                   </div>
                 </div>
               </header>
 
-              <SessionInsights value={wholeSessionInsights} now={now} running={picture.running} waiting={picture.pendingCount > 0} onEvidence={locateEvidence} tokensPerSecond={liveTokensPerSecond} />
-
-              {!ui.follow && ui.unread > 0
+              {panelTab === 'stats'
                 ? (
-                  <button
-                    type="button"
-                    className={css.unread}
-                    onClick={selected === undefined ? backToLatest : () => closeInspector(true)}
+                  <div
+                    id="watcher-panel-stats-panel"
+                    role="tabpanel"
+                    aria-labelledby="watcher-panel-stats"
+                    className={css.statsPanel}
                   >
-                    <IconRefreshOutlineRegular size={12} />
-                    {ui.unread} 条新进展 · 查看最新
-                  </button>
-                )
-                : null}
-
-              {picture.nodes.length === 0
-                ? (
-                  <div className={css.empty}>
-                    <span className={css.emptyEye} aria-hidden="true"><IconLivingEye size={22} /></span>
-                    <strong>还没有工作记录</strong>
-                    <span>第一轮对话开始后，路径会从这里生长</span>
+                    <SessionInsights
+                      value={wholeSessionInsights}
+                      now={now}
+                      running={picture.running}
+                      waiting={picture.pendingCount > 0}
+                      onEvidence={locateEvidence}
+                      tokensPerSecond={liveTokensPerSecond}
+                    />
                   </div>
                 )
                 : (
-                  <div ref={railRef} className={css.railViewport} onScroll={onRailScroll}>
-                    <div className={css.turns}>
-                      {picture.turns.map(turn => {
-                        const isLatestTurn = turn.turn === latestTurnNumber
-                        const turnState = overviewStateOf(turn.status, isLatestTurn)
-                        const automaticDefaultOpen = turnNeedsDefaultDisclosure(turnState, isLatestTurn)
-                        const turnOpen = turnDisclosureOpen(disclosure, turn.turn, automaticDefaultOpen)
-                        const turnTitle = turn.turn === 0 ? '会话准备' : `对话轮次 ${turn.turn}`
-                        const turnSummary = turnOverviewSummary(turn)
-                        const performance = performanceByTurn.get(turn.turn)
-                        const isLiveTurn = isLatestTurn && picture.running
-                        const duration = turnDuration(turn, isLiveTurn, now)
-                        const tokenSpeed = performance?.throughput.kind === 'measured'
-                          ? `${formatTokensPerSecond(performance.throughput.tokensPerSecond)} tok/s`
-                          : null
-                        const durationAria = duration === null
-                          ? ''
-                          : duration.kind === 'exact'
-                            ? `，总耗时 ${duration.value}`
-                            : `，已记录 ${duration.value}，开头未载入`
-                        const secondaryPerformance = [
-                          duration?.kind === 'partial' ? '开头未载入' : null,
-                          tokenSpeed,
-                        ].filter((value): value is string => value !== null).join(' · ')
-                        return (
-                          <section key={turn.turn} className={css.turn} aria-labelledby={`watcher-turn-${turn.turn}`}>
-                            <header className={css.turnHeader}>
-                              <h2 id={`watcher-turn-${turn.turn}`}>
-                                <button
-                                  type="button"
-                                  className={css.turnToggle}
-                                  aria-expanded={turnOpen}
-                                  aria-controls={`watcher-turn-body-${turn.turn}`}
-                                  aria-label={`${turnTitle}，${OVERVIEW_STATE_LABEL[turnState]}，${turnSummary}${durationAria}${tokenSpeed === null ? '' : `，生成速度 ${tokenSpeed}`}，${turnOpen ? '收起轮次' : '展开轮次'}`}
-                                  title={turnOpen ? '收起此轮次；新进展仍会继续更新' : '展开此轮次'}
-                                  onClick={() => {
-                                    pinForDisclosure()
-                                    setDisclosure(current => toggleTurnDisclosure(
-                                      current,
-                                      turn.turn,
-                                      automaticDefaultOpen,
-                                    ))
-                                  }}
-                                >
-                                  <IconChevronRightOutlineRegular size={13} className={css.turnChevron} />
-                                  <span className={css.turnNoWrap} aria-hidden="true">
-                                    <span className={css.turnNoLabel}>{turn.turn === 0 ? '准备' : '轮次'}</span>
-                                    <span className={css.turnNo}>{turn.turn === 0 ? '—' : turn.turn}</span>
-                                  </span>
-                                  <span className={css.turnCopy}>
-                                    <span className={css.turnTitleLine}>
-                                      {showOverviewTag(turnState)
-                                        ? <span className={css.overviewTag} data-state={turnState}>{OVERVIEW_STATE_LABEL[turnState]}</span>
-                                        : null}
-                                    </span>
-                                    <span className={css.turnSummary}>{turnSummary}</span>
-                                  </span>
-                                  <span className={css.turnPerformance}>
-                                    <span className={css.turnDuration}>
-                                      {duration === null
-                                        ? OVERVIEW_STATE_LABEL[turnState]
-                                        : duration.kind === 'exact'
-                                          ? `总 ${duration.value}`
-                                          : `已记录 ${duration.value}`}
-                                    </span>
-                                    {secondaryPerformance === '' ? null : <span className={css.turnSpeed}>{secondaryPerformance}</span>}
-                                  </span>
-                                </button>
-                              </h2>
-                            </header>
-                            {turnOpen ? (
-                            <div id={`watcher-turn-body-${turn.turn}`} className={css.turnBody}>
-                              <div className={css.groupRail}>
-                                <span className={css.railLine} aria-hidden="true" />
-                                {(() => {
-                                  const turnTotalMs = turn.groups.reduce(
-                                    (sum, group) => sum + (groupElapsedMs(group, isLiveTurn, now) ?? 0),
-                                    0,
-                                  )
-                                  return turn.groups.map(group => {
-                                    const isNow = group.id === lastGroupId
-                                    const selectedGroup = ui.selectedId === group.id
-                                    const phaseOpen = layerDisclosureOpen(disclosure, 'phase', group.id)
-                                    return (
-                                      <PhaseOverview
-                                        key={group.id}
-                                        group={group}
-                                        isNow={isNow}
-                                        running={picture.running}
-                                        turnTotalMs={turnTotalMs}
-                                        selectedGroup={selectedGroup}
-                                      selectedItemId={selectedItemId}
-                                      observationMode={observationMode}
-                                      open={phaseOpen}
-                                      disclosure={disclosure}
-                                      onToggle={() => {
-                                        pinForDisclosure()
-                                        setDisclosure(current => toggleLayerDisclosure(current, 'phase', group.id))
-                                      }}
-                                      onToggleLayer={(layer, key) => {
-                                        pinForDisclosure()
-                                        setDisclosure(current => toggleLayerDisclosure(current, layer, key))
-                                      }}
-                                      onToggleReasoning={(key, modelKey) => {
-                                        pinForDisclosure()
-                                        setDisclosure(current => {
-                                          const reasoningOpen = layerDisclosureOpen(current, 'reasoning', key)
-                                          const withOpenParent = reasoningOpen
-                                            ? current
-                                            : setLayerDisclosure(current, 'model', modelKey, true)
-                                          // Opening a nested reasoning record is explicit reading intent.
-                                          // Keep its parent open when the live model settles and its
-                                          // default changes after a depth switch or live update.
-                                          return toggleLayerDisclosure(withOpenParent, 'reasoning', key)
-                                        })
-                                      }}
-                                      onSelectItem={item => selectItem(group, item)}
-                                    />
-                                  )
-                                })
-                              })()}
-                              </div>
-                            </div>
-                            ) : null}
-                          </section>
-                        )
-                      })}
+                  <div
+                    id="watcher-panel-path-panel"
+                    role="tabpanel"
+                    aria-labelledby="watcher-panel-path"
+                    className={css.pathPanel}
+                  >
+                    <div className={css.pathToolbar} aria-label="路径视图设置">
+                      <Input
+                        className={css.filterInput}
+                        icon={<IconSearchOutlineRegular size={14} />}
+                        value={pathFilter.query}
+                        onChange={event => setPathFilter(current => ({ ...current, query: event.target.value }))}
+                        placeholder="搜索标题、工具或阶段"
+                        aria-label="搜索工作路径"
+                      />
+                      <SegmentedToggle
+                        label="路径筛选"
+                        value={pathFilter.status}
+                        onChange={(status: PathStatusFilter) => setPathFilter(current => ({ ...current, status }))}
+                        options={[
+                          { value: 'all', label: '全部', title: '显示全部记录' },
+                          { value: 'issues', label: '异常', title: '只显示失败与中断的记录' },
+                          { value: 'waiting', label: '等待', title: '只显示等待确认的记录' },
+                        ]}
+                      />
+                      <div className={css.controlViews}>
+                        <div className={css.viewControl}>
+                          <span className={css.viewToolbarLabel}>组织</span>
+                          <SegmentedToggle
+                            label="路径组织方式"
+                            value={observationMode}
+                            onChange={chooseObservationMode}
+                            options={[
+                              { value: 'itemized', label: '逐项', title: '按时间顺序展示每个步骤和每次执行' },
+                              { value: 'grouped', label: '归类', title: '按同一目标或完全相同的指令归类，展开仍可查看原始执行' },
+                            ]}
+                          />
+                        </div>
+                        <div className={css.viewControl}>
+                          <span className={css.viewToolbarLabel}>层级</span>
+                          <SegmentedToggle
+                            label="路径展开深度"
+                            value={disclosure.depth}
+                            onChange={chooseDepth}
+                            options={[
+                              { value: 'overview', label: '概览', title: '展开当前轮次，展示阶段概览；阶段内部保持收起' },
+                              { value: 'detail', label: '详情', title: '展开所有轮次、阶段、步骤、模型与推理记录' },
+                            ]}
+                          />
+                        </div>
+                      </div>
+                      <div className={css.pathHistory}>
+                        {snapshot.hasMore && historyLoad.kind !== 'loading' ? (
+                          <button
+                            type="button"
+                            className={css.loadOlderBtn}
+                            onClick={startOlderLoad}
+                            disabled={olderLoading}
+                            title="只往回载入一页历史；继续点击可逐页翻到会话开头"
+                          >
+                            {olderLoading ? '正在载入更早…' : '载入更早'}
+                          </button>
+                        ) : null}
+                        {snapshot.hasMore || historyLoad.kind === 'loading' || historyLoad.kind === 'error' ? (
+                          <button
+                            type="button"
+                            className={css.loadAllInlineBtn}
+                            onClick={startHistoryLoad}
+                            disabled={historyLoad.kind === 'loading'}
+                          >
+                            {historyLoad.kind === 'loading' ? '正在补齐历史…' : historyLoad.kind === 'error' ? '重试载入' : '载入全部历史 →'}
+                          </button>
+                        ) : null}
+                        {historyLoad.kind === 'loading' || historyLoad.kind === 'error' ? (
+                          <span role="status">{historyLoad.kind === 'error' ? historyLoad.message : `已载入 ${historyProgress}`}</span>
+                        ) : null}
+                      </div>
                     </div>
+
+                    {!ui.follow && ui.unread > 0
+                      ? (
+                        <button
+                          type="button"
+                          className={css.unread}
+                          onClick={selected === undefined ? backToLatest : () => closeInspector(true)}
+                        >
+                          <IconRefreshOutlineRegular size={12} />
+                          {ui.unread} 条新进展 · 查看最新
+                        </button>
+                      )
+                      : null}
+
+                    {picture.nodes.length === 0
+                      ? (
+                        <div className={css.empty}>
+                          <span className={css.emptyEye} aria-hidden="true"><IconLivingEye size={22} /></span>
+                          <strong>还没有工作记录</strong>
+                          <span>第一轮对话开始后，路径会从这里生长</span>
+                        </div>
+                      )
+                      : noFilterMatch
+                        ? (
+                          <div className={css.empty}>
+                            <span className={css.emptyEye} aria-hidden="true"><IconSearchOutlineRegular size={22} /></span>
+                            <strong>没有匹配的记录</strong>
+                            <span>换个关键词，或把筛选切回「全部」</span>
+                          </div>
+                        )
+                        : (
+                        <div ref={railRef} className={css.railViewport} onScroll={onRailScroll}>
+                          <div className={css.turns}>
+                            {visibleTurns.map(turn => {
+                              const isLatestTurn = turn.turn === latestTurnNumber
+                              const turnState = overviewStateOf(turn.status, isLatestTurn)
+                              const automaticDefaultOpen = turnNeedsDefaultDisclosure(turnState, isLatestTurn)
+                              const turnOpen = filterActive || turnDisclosureOpen(disclosure, turn.turn, automaticDefaultOpen)
+                              const turnTitle = turn.turn === 0 ? '会话准备' : `对话轮次 ${turn.turn}`
+                              const turnSummary = turnOverviewSummary(turn)
+                              const performance = performanceByTurn.get(turn.turn)
+                              const isLiveTurn = isLatestTurn && picture.running
+                              const duration = turnDuration(turn, isLiveTurn, now)
+                              const tokenSpeed = performance?.throughput.kind === 'measured'
+                                ? `${formatTokensPerSecond(performance.throughput.tokensPerSecond)} tok/s`
+                                : null
+                              const durationAria = duration === null
+                                ? ''
+                                : duration.kind === 'exact'
+                                  ? `，总耗时 ${duration.value}`
+                                  : `，已记录 ${duration.value}，开头未载入`
+                              const secondaryPerformance = [
+                                duration?.kind === 'partial' ? '开头未载入' : null,
+                                tokenSpeed,
+                              ].filter((value): value is string => value !== null).join(' · ')
+                              return (
+                                <section key={turn.turn} className={css.turn} aria-labelledby={`watcher-turn-${turn.turn}`}>
+                                  <header className={css.turnHeader}>
+                                    <h2 id={`watcher-turn-${turn.turn}`}>
+                                      <button
+                                        type="button"
+                                        className={css.turnToggle}
+                                        aria-expanded={turnOpen}
+                                        aria-controls={`watcher-turn-body-${turn.turn}`}
+                                        aria-label={`${turnTitle}，${OVERVIEW_STATE_LABEL[turnState]}，${turnSummary}${durationAria}${tokenSpeed === null ? '' : `，生成速度 ${tokenSpeed}`}，${turnOpen ? '收起轮次' : '展开轮次'}`}
+                                        title={turnOpen ? '收起此轮次；新进展仍会继续更新' : '展开此轮次'}
+                                        onClick={() => {
+                                          pinForDisclosure()
+                                          setDisclosure(current => toggleTurnDisclosure(
+                                            current,
+                                            turn.turn,
+                                            automaticDefaultOpen,
+                                          ))
+                                        }}
+                                      >
+                                        <IconChevronRightOutlineRegular size={13} className={css.turnChevron} />
+                                        <span className={css.turnNoWrap} aria-hidden="true">
+                                          <span className={css.turnNoLabel}>{turn.turn === 0 ? '准备' : '轮次'}</span>
+                                          <span className={css.turnNo}>{turn.turn === 0 ? '—' : turn.turn}</span>
+                                        </span>
+                                        <span className={css.turnCopy}>
+                                          <span className={css.turnTitleLine}>
+                                            {showOverviewTag(turnState)
+                                              ? <span className={css.overviewTag} data-state={turnState}>{OVERVIEW_STATE_LABEL[turnState]}</span>
+                                              : null}
+                                          </span>
+                                          <span className={css.turnSummary}>{turnSummary}</span>
+                                        </span>
+                                        <span className={css.turnPerformance}>
+                                          <span className={css.turnDuration}>
+                                            {duration === null
+                                              ? OVERVIEW_STATE_LABEL[turnState]
+                                              : duration.kind === 'exact'
+                                                ? `总 ${duration.value}`
+                                                : `已记录 ${duration.value}`}
+                                          </span>
+                                          {secondaryPerformance === '' ? null : <span className={css.turnSpeed}>{secondaryPerformance}</span>}
+                                        </span>
+                                      </button>
+                                    </h2>
+                                  </header>
+                                  {turnOpen ? (
+                                  <div id={`watcher-turn-body-${turn.turn}`} className={css.turnBody}>
+                                    <div className={css.groupRail}>
+                                      <span className={css.railLine} aria-hidden="true" />
+                                      {(() => {
+                                        const turnTotalMs = turn.groups.reduce(
+                                          (sum, group) => sum + (groupElapsedMs(group, isLiveTurn, now) ?? 0),
+                                          0,
+                                        )
+                                        return turn.groups.map(group => {
+                                          const isNow = group.id === lastGroupId
+                                          const selectedGroup = ui.selectedId === group.id
+                                          const phaseOpen = layerDisclosureOpen(disclosure, 'phase', group.id)
+                                          return (
+                                            <PhaseOverview
+                                              key={group.id}
+                                              group={group}
+                                              isNow={isNow}
+                                              running={picture.running}
+                                              turnTotalMs={turnTotalMs}
+                                              selectedGroup={selectedGroup}
+                                            selectedItemId={selectedItemId}
+                                            observationMode={observationMode}
+                                            open={phaseOpen}
+                                            disclosure={disclosure}
+                                            onToggle={() => {
+                                              pinForDisclosure()
+                                              setDisclosure(current => toggleLayerDisclosure(current, 'phase', group.id))
+                                            }}
+                                            onToggleLayer={(layer, key) => {
+                                              pinForDisclosure()
+                                              setDisclosure(current => toggleLayerDisclosure(current, layer, key))
+                                            }}
+                                            onToggleReasoning={(key, modelKey) => {
+                                              pinForDisclosure()
+                                              setDisclosure(current => {
+                                                const reasoningOpen = layerDisclosureOpen(current, 'reasoning', key)
+                                                const withOpenParent = reasoningOpen
+                                                  ? current
+                                                  : setLayerDisclosure(current, 'model', modelKey, true)
+                                                // Opening a nested reasoning record is explicit reading intent.
+                                                // Keep its parent open when the live model settles and its
+                                                // default changes after a depth switch or live update.
+                                                return toggleLayerDisclosure(withOpenParent, 'reasoning', key)
+                                              })
+                                            }}
+                                            onSelectItem={item => selectItem(group, item)}
+                                            filter={pathFilter}
+                                          />
+                                        )
+                                      })
+                                    })()}
+                                    </div>
+                                  </div>
+                                  ) : null}
+                                </section>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
                   </div>
                 )}
             </section>

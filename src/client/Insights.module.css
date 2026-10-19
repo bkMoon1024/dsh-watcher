@@ -324,6 +324,22 @@
   overflow-x: hidden;
 }
 
+/* 分区导航：概览 / 趋势 / 会话 / 偏好。分区内容按页切换，不再是一整条长卷。 */
+.settingsTabsRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.settingsPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
 /* ── 页头：标题 + 时间范围 + 刷新 ── */
 
 .cockpitHeader {
@@ -636,6 +652,71 @@
 @keyframes slideDown {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* 下钻浮层：盖在设置页上，不再把下文推下去；卡片自身提供边框与底色。 */
+.drilldownOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.drilldownBackdrop {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: var(--ui-mask);
+  backdrop-filter: var(--ui-mask-blur);
+  cursor: default;
+  animation: overlayFadeIn var(--ui-motion) var(--ui-ease);
+}
+
+.drilldownDialog {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: min(560px, 100%);
+  max-height: min(78vh, 680px);
+  min-height: 0;
+}
+
+.drilldownDialog:focus { outline: none; }
+
+.drilldownDialog .drilldownPanel {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border-radius: var(--ui-radius-card);
+  box-shadow: var(--ui-elevation-prominent);
+  animation: dialogRise var(--ui-motion) var(--ui-ease);
+}
+
+/* 标题与收起按钮随滚动留在顶部，长列表里也够得着。 */
+.drilldownDialog .drilldownHead {
+  position: sticky;
+  top: -14px;
+  z-index: 1;
+  margin: -14px -16px 0;
+  padding: 14px 16px 10px;
+  background: var(--ui-surface);
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+}
+
+@keyframes dialogRise {
+  from { opacity: 0; transform: translateY(8px) scale(.99); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drilldownBackdrop,
+  .drilldownDialog .drilldownPanel { animation: none; }
 }
 
 .drilldownHead {
@@ -1002,6 +1083,43 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
+  flex-wrap: wrap;
+}
+
+.ledgerControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ledgerSearch { width: 200px; max-width: 100%; }
+
+.ledgerMore {
+  align-self: center;
+  margin-top: 4px;
+  padding: 6px 12px;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-row);
+  background: var(--ui-surface);
+  color: var(--ui-text-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    background-color var(--ui-motion-fast) var(--ui-ease),
+    color var(--ui-motion-fast) var(--ui-ease);
+}
+
+.ledgerMore:hover {
+  background: var(--ui-hover);
+  color: var(--ui-text);
+}
+
+.ledgerMore:focus-visible {
+  outline: var(--ui-focus-width) solid var(--ui-focus-ring);
+  outline-offset: 1px;
 }
 
 .vizTitle {

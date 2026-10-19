@@ -104,9 +104,16 @@ test('the overview keeps every Step and occurrence reachable through folding and
   assert.match(source, /data-overview-state=\{phaseState\}/)
   assert.match(source, /className=\{css\.overviewStep\}/)
   assert.match(source, /className=\{css\.stepToggle\}/)
-  assert.match(source, /step\.items\.map/)
+  // Steps render a merged timeline (occurrences interleaved with the model
+  // stage) and the path filter narrows it before mapping.
+  assert.match(source, /stepTimelineEntries\(step\)/)
+  assert.match(source, /shownEntries\.map\(entry =>/)
   assert.match(source, /className=\{css\.overviewOccurrence\}/)
-  assert.match(source, /clusterWorkItems\(group\.items\.filter\(item => item\.source !== 'model'\)\)/)
+  // Grouping is still reversible: the same cluster helper runs over the group's
+  // work items, narrowed by the path filter when one is active.
+  assert.match(source, /group\.items\.filter\(item => item\.source !== 'model'\)/)
+  assert.match(source, /clusterWorkItems\(/)
+  assert.match(source, /visibleItemIds\.has\(item\.id\)/)
   assert.match(source, /className=\{css\.analysisClusterToggle\}/)
   assert.match(source, /onSelectItem=\{item => selectItem\(group, item\)\}/)
   assert.match(source, /label: '逐项'/)
@@ -170,8 +177,11 @@ test('wall-clock evidence is visible at every useful level without heuristic spe
   assert.match(overview, /有失败记录/)
   assert.doesNotMatch(styles, /\.turnMetrics\s*\{/)
   assert.match(styles, /\.turnPerformance\s*\{/)
-  assert.match(styles, /\.stepDuration\s*\{/)
-  assert.match(styles, /\.occurrenceDuration\s*\{/)
+  // Step and occurrence durations moved out of the inspector's duplicated
+  // execution list and into the path itself: the step header carries the total
+  // and each occurrence row carries its own elapsed time.
+  assert.match(styles, /\.overviewStepSignals\s*\{/)
+  assert.match(styles, /\.overviewOccurrenceDuration\s*\{/)
   assert.match(performance, /firstTokenTime/)
   assert.match(performance, /outputTokens \/ \(fold\.decodeMs \/ 1000\)/)
 })

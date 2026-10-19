@@ -52,6 +52,10 @@
   --ui-scrollbar-hover: var(--dsw-alias-scrollbar-hover-l2);
   --ui-code-block: var(--dsw-alias-markdown-code-block);
 
+  /* Scrim behind dialogs: the same mask the host Modal paints. */
+  --ui-mask: var(--dsw-alias-bg-mask-1);
+  --ui-mask-blur: var(--dsw-mask-blur);
+
   /* Geometry and type: host values, not plugin inventions. */
   --ui-radius-card: var(--dsw-radius-md);
   --ui-radius-row: var(--dsw-radius-sm);

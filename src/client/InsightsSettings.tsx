@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 // @ts-ignore TS7016: no declarations for the local .mjs module
 import { scanSessions } from '../insights/presentation.mjs'
 // @ts-ignore TS7016: no declarations for the local .mjs module
 import { estimateDisclaimer, formatEstimate, formatEstimateNote } from '../insights/pricing.mjs'
 // @ts-ignore TS7016: no declarations for the local .mjs module
 import { costCopy } from '../insights/i18n.mjs'
-import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, SegmentedControl } from '@deepseek-ai/dsh-client-ui-primitives'
 import css from './Insights.module.css'
 import tokensCss from './ui/tokens.module.css'
 import { SegmentedToggle } from './ui/SegmentedToggle.tsx'
@@ -20,6 +20,8 @@ import { SettingsPrefs } from './insights-sections/SettingsPrefs.tsx'
 
 type Drilldown = 'speed' | 'latency' | 'thinking' | 'cache' | 'tool' | 'reliability'
 type ChartViewMode = 'bar' | 'line'
+/** The settings surface is a set of pages, not one long scroll. */
+type SettingsTab = 'overview' | 'trends' | 'sessions' | 'prefs'
 
 /** Settings-page surface: usage scan, headline metrics and the section stack. */
 export function InsightsSettings(props: { remote?: any }) {
@@ -27,6 +29,7 @@ export function InsightsSettings(props: { remote?: any }) {
   const pricing = usePricingTable()
   const copy = costCopy(locale)
   const userPickedRange = useRef(false)
+  const [tab, setTab] = useState<SettingsTab>('overview')
   const [range, setRange] = useState<AnalyticsRange>('7')
   const [customViewMode, setCustomViewMode] = useState<ChartViewMode | null>(null)
   const [sessionSort, setSessionSort] = useState<SessionSort>('tokens')
@@ -34,6 +37,8 @@ export function InsightsSettings(props: { remote?: any }) {
   const [sessions, setSessions] = useState<SessionsScan | null>(null)
   const [scanError, setScanError] = useState<string | null>(null)
   const [activeDrilldown, setActiveDrilldown] = useState<Drilldown | null>(null)
+  const drilldownRef = useRef<HTMLDivElement | null>(null)
+  const restoreFocusRef = useRef<HTMLElement | null>(null)
   const mountedRef = useRef(true)
   useEffect(() => {
     mountedRef.current = true
@@ -83,6 +88,38 @@ export function InsightsSettings(props: { remote?: any }) {
   }
 
   const analytics = useMemo(() => analyticsOf(sessions, range, sessionSort, pricing), [sessions, range, sessionSort, pricing])
+
+  // Drill-downs used to be inserted inline, pushing everything below them down.
+  // They now open as a layer over the page and hand focus back on close.
+  const closeDrilldown = useCallback(() => {
+    setActiveDrilldown(null)
+    const target = restoreFocusRef.current
+    restoreFocusRef.current = null
+    if (target !== null && target.isConnected) target.focus()
+  }, [])
+
+  const openDrilldown = useCallback((next: Drilldown | null) => {
+    if (next === null) {
+      closeDrilldown()
+      return
+    }
+    if (restoreFocusRef.current === null) {
+      restoreFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    }
+    setActiveDrilldown(next)
+  }, [closeDrilldown])
+
+  useEffect(() => {
+    if (activeDrilldown === null) return
+    drilldownRef.current?.focus()
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      closeDrilldown()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [activeDrilldown, closeDrilldown])
   // A scan skips sessions for concrete reasons (no cached projection yet, or a
   // subagent whose inherited prefix would double-count). Those reasons already
   // travel with the rows; folding them into one line explains the gap between
@@ -114,16 +151,18 @@ export function InsightsSettings(props: { remote?: any }) {
           <p className={css.cockpitSubTitle}>只读汇总本地已缓存的对话。按活动日期归组，无额外后台开销。</p>
         </div>
         <div className={css.headerRightControls}>
-          <SegmentedToggle
-            label="统计时间范围"
-            value={range}
-            onChange={next => { userPickedRange.current = true; setRange(next); setCustomViewMode(null) }}
-            options={[
-              { value: '7', label: '近 7 天' },
-              { value: '30', label: '近 30 天' },
-              { value: '180', label: '近 6 个月' },
-            ]}
-          />
+          {tab === 'prefs' ? null : (
+            <SegmentedToggle
+              label="统计时间范围"
+              value={range}
+              onChange={next => { userPickedRange.current = true; setRange(next); setCustomViewMode(null) }}
+              options={[
+                { value: '7', label: '近 7 天' },
+                { value: '30', label: '近 30 天' },
+                { value: '180', label: '近 6 个月' },
+              ]}
+            />
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -136,49 +175,27 @@ export function InsightsSettings(props: { remote?: any }) {
         </div>
       </div>
 
-      <div className={css.heroStatsRow}>
-        <div className={css.heroMetric}>
-          <span className={css.heroCaption}>Token 总消耗</span>
-          <strong className={css.heroValue}>{analytics ? fmtCompact(analytics.totalTokens) : '-'}</strong>
-        </div>
-        <div
-          className={css.heroMetric}
-          title={heroCostTitle}
-          aria-label={`${copy.estimatedCost}: ${heroCostText}`}
-        >
-          <span className={css.heroCaption}>{copy.estimatedCost}</span>
-          <strong className={css.heroValue}>{heroCostText}</strong>
-          {heroCostNote ? <span className={css.heroFootnote}>{heroCostNote}</span> : null}
-        </div>
-        <div className={css.heroMetric}>
-          <span className={css.heroCaption}>累计耗时</span>
-          <strong className={css.heroValue}>{analytics ? `${analytics.totalTimeHours} 小时` : '-'}</strong>
-        </div>
-        <div className={css.heroMetric}>
-          <span className={css.heroCaption}>缓存命中</span>
-          <strong className={css.heroValue}>{analytics ? `${analytics.cacheHitPct}%` : '-'}</strong>
-          <span className={css.heroFootnote}>{analytics ? `${cacheNote} · 复用 ${fmtCompact(analytics.totalCacheRead)} Token` : ''}</span>
-        </div>
+      <div className={css.settingsTabsRow}>
+        <SegmentedControl
+          id="watcher-settings"
+          label="设置分区"
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: 'overview', label: '概览' },
+            { value: 'trends', label: '趋势' },
+            { value: 'sessions', label: '会话' },
+            { value: 'prefs', label: '偏好' },
+          ]}
+        />
+        <p className={css.heroScanNote}>
+          有统计的对话 <strong>{analytics ? `${analytics.validCount} / ${analytics.scannedCount}` : '-'}</strong>
+          {analytics && analytics.scannedCount < analytics.listed
+            ? `（会话较多，仅统计最近 ${analytics.scannedCount} / 共 ${analytics.listed} 个）`
+            : ''}
+        </p>
       </div>
-      <p className={css.heroScanNote}>
-        有统计的对话 <strong>{analytics ? `${analytics.validCount} / ${analytics.scannedCount}` : '-'}</strong>
-        {analytics && analytics.scannedCount < analytics.listed
-          ? `（会话较多，仅统计最近 ${analytics.scannedCount} / 共 ${analytics.listed} 个）`
-          : ''}
-      </p>
-      {skipped.length > 0
-        ? (
-          <p className={css.heroScanNote}>
-            未纳入统计 {skipped.reduce((sum, [, count]) => sum + count, 0)} 个：
-            {skipped.map(([reason, count], index) => (
-              <span key={reason}>
-                {index > 0 ? ' · ' : ''}
-                <span title={reason}>{reason.replace(/[；;].*$/, '')}（{count}）</span>
-              </span>
-            ))}
-          </p>
-        )
-        : null}
+
       {scanError
         ? (
           <p className={css.scanError} role="alert">
@@ -186,37 +203,117 @@ export function InsightsSettings(props: { remote?: any }) {
           </p>
         )
         : null}
-      <RoastCards
-        analytics={analytics}
-        activeDrilldown={activeDrilldown}
-        setActiveDrilldown={next => setActiveDrilldown(next)}
-      />
 
-      {activeDrilldown && analytics ? (
-        <DrilldownPanel
-          analytics={analytics}
-          activeDrilldown={activeDrilldown}
-          setActiveDrilldown={next => setActiveDrilldown(next)}
-        />
-      ) : null}
+      <div
+        id={`watcher-settings-${tab}-panel`}
+        role="tabpanel"
+        aria-labelledby={`watcher-settings-${tab}`}
+        className={css.settingsPanel}
+      >
+        {tab === 'overview'
+          ? (
+            <>
+              <div className={css.heroStatsRow}>
+                <div className={css.heroMetric}>
+                  <span className={css.heroCaption}>Token 总消耗</span>
+                  <strong className={css.heroValue}>{analytics ? fmtCompact(analytics.totalTokens) : '-'}</strong>
+                </div>
+                <div
+                  className={css.heroMetric}
+                  title={heroCostTitle}
+                  aria-label={`${copy.estimatedCost}: ${heroCostText}`}
+                >
+                  <span className={css.heroCaption}>{copy.estimatedCost}</span>
+                  <strong className={css.heroValue}>{heroCostText}</strong>
+                  {heroCostNote ? <span className={css.heroFootnote}>{heroCostNote}</span> : null}
+                </div>
+                <div className={css.heroMetric}>
+                  <span className={css.heroCaption}>累计耗时</span>
+                  <strong className={css.heroValue}>{analytics ? `${analytics.totalTimeHours} 小时` : '-'}</strong>
+                </div>
+                <div className={css.heroMetric}>
+                  <span className={css.heroCaption}>缓存命中</span>
+                  <strong className={css.heroValue}>{analytics ? `${analytics.cacheHitPct}%` : '-'}</strong>
+                  <span className={css.heroFootnote}>{analytics ? `${cacheNote} · 复用 ${fmtCompact(analytics.totalCacheRead)} Token` : ''}</span>
+                </div>
+              </div>
+              {skipped.length > 0
+                ? (
+                  <p className={css.heroScanNote}>
+                    未纳入统计 {skipped.reduce((sum, [, count]) => sum + count, 0)} 个：
+                    {skipped.map(([reason, count], index) => (
+                      <span key={reason}>
+                        {index > 0 ? ' · ' : ''}
+                        <span title={reason}>{reason.replace(/[；;].*$/, '')}（{count}）</span>
+                      </span>
+                    ))}
+                  </p>
+                )
+                : null}
+              <RoastCards
+                analytics={analytics}
+                activeDrilldown={activeDrilldown}
+                setActiveDrilldown={openDrilldown}
+              />
+            </>
+          )
+          : null}
 
-      <UsageCharts
-        analytics={analytics}
-        range={range}
-        viewMode={activeViewMode}
-        setCustomViewMode={next => setCustomViewMode(next)}
-      />
+        {tab === 'trends'
+          ? (
+            <>
+              <UsageCharts
+                analytics={analytics}
+                range={range}
+                viewMode={activeViewMode}
+                setCustomViewMode={next => setCustomViewMode(next)}
+              />
+              {analytics ? <ActivityHeatmap analytics={analytics} /> : null}
+            </>
+          )
+          : null}
 
-      {analytics ? <ActivityHeatmap analytics={analytics} /> : null}
+        {tab === 'sessions'
+          ? (
+            <SessionLedger
+              analytics={analytics}
+              sessions={sessions}
+              sessionSort={sessionSort}
+              setSessionSort={next => setSessionSort(next)}
+            />
+          )
+          : null}
 
-      <SessionLedger
-        analytics={analytics}
-        sessions={sessions}
-        sessionSort={sessionSort}
-        setSessionSort={next => setSessionSort(next)}
-      />
+        {tab === 'prefs' ? <SettingsPrefs copy={copy} /> : null}
+      </div>
 
-      <SettingsPrefs copy={copy} />
+      {activeDrilldown && analytics
+        ? (
+          <div className={css.drilldownOverlay}>
+            <button
+              type="button"
+              className={css.drilldownBackdrop}
+              aria-label="关闭下钻详情"
+              tabIndex={-1}
+              onClick={closeDrilldown}
+            />
+            <div
+              ref={drilldownRef}
+              className={css.drilldownDialog}
+              role="dialog"
+              aria-modal="true"
+              aria-label="指标下钻详情"
+              tabIndex={-1}
+            >
+              <DrilldownPanel
+                analytics={analytics}
+                activeDrilldown={activeDrilldown}
+                setActiveDrilldown={openDrilldown}
+              />
+            </div>
+          </div>
+        )
+        : null}
     </div>
   )
 }
