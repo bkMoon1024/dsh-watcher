@@ -53,7 +53,7 @@
 }
 
 .hudHeadingNote {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 400;
   color: var(--ui-text-tertiary);
   white-space: nowrap;
@@ -137,7 +137,7 @@
 }
 
 .effortTag {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--ui-accent);
   background: color-mix(in srgb, var(--ui-accent) 14%, transparent);
@@ -173,11 +173,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  /* 24px keeps the hit target at the host's minimum while the glyph stays 20px. */
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--ui-radius-row);
   background: transparent;
   color: var(--ui-text-secondary);
   cursor: pointer;
@@ -263,7 +264,7 @@
 
 .alertTag {
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   padding: 1px 6px;
   border-radius: 999px;
@@ -421,7 +422,7 @@
 }
 
 .heroFootnote {
-  font-size: 10px;
+  font-size: 11px;
   line-height: 13px;
   color: var(--ui-text-tertiary);
   max-width: 100%;
@@ -550,7 +551,7 @@
 }
 
 .roastCategoryBadge {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--ui-text-tertiary);
   flex-shrink: 0;
   letter-spacing: 0.5px;
@@ -591,7 +592,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--ui-text-tertiary);
   line-height: 1;
 }
@@ -905,7 +906,7 @@
 }
 
 .toolMiniDesc {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--ui-text-tertiary);
   line-height: 14px;
 }
@@ -1314,7 +1315,7 @@
   align-items: center;
   gap: 6px;
   padding: 2px 10px 6px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.3px;
   color: var(--ui-text-tertiary);
@@ -1468,7 +1469,7 @@
   display: flex;
   justify-content: space-between;
   color: var(--ui-text-secondary);
-  font-size: 10px;
+  font-size: 11px;
   font-variant-numeric: var(--ui-num);
   flex-wrap: wrap;
   gap: 6px;
@@ -1566,7 +1567,7 @@
 }
 
 .chartTooltipDateBadge {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   padding: 1px 6px;
   border-radius: 999px;
@@ -1676,7 +1677,7 @@
 }
 
 .lineAxisText {
-  font-size: 9px;
+  font-size: 10px;
   fill: var(--ui-text-tertiary);
   font-variant-numeric: var(--ui-num);
 }
@@ -1796,7 +1797,7 @@
   height: 109px;
   width: 24px;
   flex-shrink: 0;
-  font-size: 9px;
+  font-size: 10px;
   color: var(--ui-text-tertiary);
   padding: 0;
   user-select: none;
@@ -1987,7 +1988,7 @@
 
 .settingsSummary::before {
   content: '▸';
-  font-size: 10px;
+  font-size: 11px;
   color: var(--ui-text-tertiary);
   transition: transform 120ms ease;
 }
