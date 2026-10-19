@@ -1,25 +1,13 @@
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type {} from '@deepseek-ai/dsh-client-ui-chat/client'
 import type {} from '@deepseek-ai/dsh-session-stats/client'
-import {
-  Button,
-  IconChevronRightOutlineRegular,
-  IconRefreshOutlineRegular,
-  IconSearchOutlineRegular,
-  Input,
-  Pill,
-} from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconSearchOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import { createFollow } from '../hub/follow.ts'
 import type { CompleteHistoryResult } from '../hub/history.ts'
-import {
-  clusterOutcomeSummary,
-  clusterWorkItems,
-  type WorkCluster,
-} from '../hub/aggregation.ts'
 import {
   EMPTY_PICTURE,
   foldSnapshot,
@@ -27,47 +15,20 @@ import {
   type WorkGroup,
   type WorkItem,
   type WorkPicture,
-  type WorkPresentation,
   type WorkStatus,
-  type WorkStep,
-  type WorkTurn,
   type WatcherSnapshot,
 } from '../observation/fold.ts'
 import css from './Watcher.module.css'
 import tokensCss from './ui/tokens.module.css'
-import { SessionInsights } from './SessionInsights.tsx'
-import { SegmentedToggle } from './ui/SegmentedToggle.tsx'
 import { usePanelGeometry } from './panel-geometry.ts'
-import {
-  OVERVIEW_STATE_LABEL,
-  overviewStateOf,
-  turnNeedsDefaultDisclosure,
-  turnOverviewSummary,
-} from '../hub/overview.ts'
-import {
-  deriveTurnPerformance,
-  formatTokensPerSecond,
-  groupElapsedMs,
-  itemElapsedMs,
-  stepElapsedMs,
-  turnElapsedReading,
-  type TurnPerformance,
-} from '../observation/performance.ts'
-import {
-  hasReasoningEvidence,
-  modelStageMetrics,
-  type ModelAttempt,
-  type ModelStepTrace,
-} from '../observation/model-trace.ts'
-import { formatDuration, turnDuration, useLiveClock } from './display.ts'
-import { ExecutionInspector, type DetailTab } from './Inspector.tsx'
-import { PhaseOverview, showOverviewTag } from './Overview.tsx'
+import { deriveTurnPerformance, type TurnPerformance } from '../observation/performance.ts'
+import { useLiveClock } from './display.ts'
+import { ExecutionInspector } from './Inspector.tsx'
 import {
   EMPTY_PATH_FILTER,
   groupMatchesFilter,
   pathFilterActive,
   type PathFilter,
-  type PathStatusFilter,
 } from './path-filter.ts'
 import type { ObservationMode } from './view-mode.ts'
 import {
@@ -78,10 +39,16 @@ import {
   setLayerDisclosure,
   toggleLayerDisclosure,
   toggleTurnDisclosure,
-  turnDisclosureOpen,
   type DisclosureLayer,
   type DisclosureState,
 } from './disclosure-depth.ts'
+import type { Evidence } from './SessionInsights.tsx'
+import { MetricsStrip } from './panel/MetricsStrip.tsx'
+import { PanelHeader, type PanelTool } from './panel/PanelHeader.tsx'
+import { PathTimeline } from './panel/PathTimeline.tsx'
+import { SearchRow } from './panel/SearchRow.tsx'
+import { StatsPopover } from './panel/StatsPopover.tsx'
+import { ViewMenu } from './panel/ViewMenu.tsx'
 
 export interface WatcherInjected {
   /** Pull a single older page; the caller decides how far back to walk. */
@@ -105,6 +72,7 @@ type HistoryLoadState =
 const INSPECTOR_CONTENT_EXIT_MS = 120
 const INSPECTOR_EXIT_MS = 200
 const INSPECTOR_EXIT_FALLBACK_MS = INSPECTOR_CONTENT_EXIT_MS + INSPECTOR_EXIT_MS + 250
+
 /** The pupil scans only while live; the complete eye remains a useful static glyph. */
 function IconLivingEye({ size = 17 }: { size?: number }) {
   return (
@@ -223,6 +191,7 @@ function ReadyWatcher({
   const lastGroup = picture.nodes.at(-1)
   const lastGroupId = lastGroup?.id ?? null
   const lastItem = lastGroup?.items.at(-1)
+  const lastItemId = lastItem?.id ?? null
   const latestActivityKey = lastItem === undefined
     ? lastGroupId
     : `${lastGroupId}:${lastItem.id}:${lastItem.seq}:${lastItem.status}:${lastItem.resultSeq ?? 'open'}:${lastItem.resultTime ?? 'open'}`
@@ -237,6 +206,10 @@ function ReadyWatcher({
   const [olderLoading, setOlderLoading] = useState(false)
   const [pathFilter, setPathFilter] = useState<PathFilter>(EMPTY_PATH_FILTER)
   const filterActive = pathFilterActive(pathFilter)
+  // The panel keeps one tool open at a time: search, the usage overlay, or the
+  // view/history menu. Everything else lives in the path itself.
+  const [activeTool, setActiveTool] = useState<PanelTool>('none')
+  const searchVisible = activeTool === 'search' || filterActive
   // A wide panel can show the work path and the open record side by side;
   // narrower ones keep the overlay drawer so neither column gets crushed.
   const [splitView, setSplitView] = useState(false)
@@ -265,7 +238,7 @@ function ReadyWatcher({
     return () => {
       document.removeEventListener('pointerdown', closeOutside)
     }
-  }, [open])
+  }, [open, panelRef])
 
   // The split threshold is a property of the panel, not the viewport: the panel
   // can be dragged wider than the window's breakpoints suggest. It stays above
@@ -283,6 +256,26 @@ function ReadyWatcher({
     return () => observer.disconnect()
   }, [open, panelRef])
 
+  // A click elsewhere closes the open tool. The tool buttons and the overlays
+  // themselves are exempt: the button's own click has to be able to toggle it.
+  useEffect(() => {
+    if (activeTool === 'none') return
+    const closeTool = (event: PointerEvent) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (target.closest('[data-watcher-tool]') !== null) return
+      if (target.closest('[data-watcher-overlay]') !== null) return
+      setActiveTool('none')
+    }
+    document.addEventListener('pointerdown', closeTool)
+    return () => document.removeEventListener('pointerdown', closeTool)
+  }, [activeTool])
+
+  useEffect(() => {
+    if (open) return
+    setActiveTool('none')
+  }, [open])
+
   useLayoutEffect(() => {
     historyAbortRef.current?.abort()
     historyAbortRef.current = null
@@ -291,6 +284,8 @@ function ReadyWatcher({
     setUi(followRef.current.snapshot())
     setSelectedItemId(null)
     setDisclosure(resetDisclosureOverrides)
+    setPathFilter(EMPTY_PATH_FILTER)
+    setActiveTool('none')
   }, [sessionId])
 
   useEffect(() => () => {
@@ -360,6 +355,23 @@ function ReadyWatcher({
     ? picture.turns.filter(turn => turn.groups.some(group => groupMatchesFilter(group, pathFilter)))
     : picture.turns
   const noFilterMatch = filterActive && visibleTurns.length === 0
+  const turnsText = snapshot.hasMore && totalTurnCount > picture.turnCount
+    ? `已载入 ${picture.turnCount}/${totalTurnCount} 轮`
+    : `${picture.turnCount} 轮`
+  const stepsText = snapshot.hasMore && totalStepCount > picture.stepCount
+    ? `${picture.stepCount}/${totalStepCount} 步`
+    : `${picture.stepCount} 步`
+  const actionsText = `${picture.actionCount} 次执行`
+  const historyMessage = historyLoad.kind === 'error'
+    ? historyLoad.message
+    : historyLoad.kind === 'loading'
+      ? `已载入 ${historyProgress}`
+      : historyLoad.kind === 'complete'
+        ? '历史已补齐'
+        : null
+  // The overlays hang under the metrics line, or under the search row when it
+  // is visible. Both offsets are the rendered heights, not guesses.
+  const overlayTop = searchVisible ? 118 : 78
 
   const selectItem = (group: WorkGroup, item: WorkItem) => {
     clearInspectorExit()
@@ -383,14 +395,18 @@ function ReadyWatcher({
     selectItem(selected, next)
   }
 
-  // Escape peels one layer at a time: the open detail first, then the panel.
-  // Arrow keys move between the records of the open detail, but never while a
-  // text field has focus.
+  // Escape peels one layer at a time: the open tool first, then the detail,
+  // then the panel. Arrow keys move between the records of the open detail,
+  // but never while a text field has focus.
   useEffect(() => {
     if (!open) return
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
+        if (activeTool !== 'none') {
+          setActiveTool('none')
+          return
+        }
         if (selected !== undefined && !inspectorClosing) {
           closeInspector()
           return
@@ -420,9 +436,10 @@ function ReadyWatcher({
    * turn: opening the inspector on that exact item is the whole point of the
    * affordance. A finding whose step can't be matched still lands on its turn.
    */
-  const locateEvidence = (e: { turn: number; steps: number[]; seqs: number[] }) => {
+  const locateEvidence = (e: Evidence) => {
     pinForDisclosure()
     setPathFilter(EMPTY_PATH_FILTER)
+    setActiveTool('none')
     setDisclosure(chooseDisclosureDepth('detail'))
     const turn = picture.turns.find(t => t.turn === e.turn)
     const group = turn?.groups.find(g => g.items.some(i =>
@@ -500,6 +517,35 @@ function ReadyWatcher({
     setDisclosure(chooseDisclosureDepth(depth))
   }
 
+  const toggleTurn = (turn: number, automaticDefaultOpen: boolean) => {
+    pinForDisclosure()
+    setDisclosure(current => toggleTurnDisclosure(current, turn, automaticDefaultOpen))
+  }
+
+  const togglePhase = (groupId: string) => {
+    pinForDisclosure()
+    setDisclosure(current => toggleLayerDisclosure(current, 'phase', groupId))
+  }
+
+  const toggleLayer = (layer: DisclosureLayer, key: string) => {
+    pinForDisclosure()
+    setDisclosure(current => toggleLayerDisclosure(current, layer, key))
+  }
+
+  const toggleReasoning = (key: string, modelKey: string) => {
+    pinForDisclosure()
+    setDisclosure(current => {
+      const reasoningOpen = layerDisclosureOpen(current, 'reasoning', key)
+      const withOpenParent = reasoningOpen
+        ? current
+        : setLayerDisclosure(current, 'model', modelKey, true)
+      // Opening a nested reasoning record is explicit reading intent. Keep its
+      // parent open when the live model settles and its default changes after
+      // a depth switch or live update.
+      return toggleLayerDisclosure(withOpenParent, 'reasoning', key)
+    })
+  }
+
   const startOlderLoad = () => {
     if (olderLoading || !snapshot.hasMore) return
     setOlderLoading(true)
@@ -554,6 +600,11 @@ function ReadyWatcher({
     setHistoryLoad({ kind: 'idle' })
   }, [historyLoad.kind, snapshot.hasMore])
 
+  const toggleTool = (tool: Exclude<PanelTool, 'none'>) => {
+    setActiveTool(current => (current === tool ? 'none' : tool))
+  }
+  const closeTool = () => setActiveTool('none')
+
   return (
     <div ref={rootRef} className={`${tokensCss.tokens} ${tokensCss.series} ${css.root}`} data-dsh-watcher="header">
       <button
@@ -603,131 +654,71 @@ function ReadyWatcher({
               )}
 
             <section className={css.workPicture} aria-label="Agent 工作路径" data-ud-check="watcher-work-picture" data-ud-role="panel">
-              <header className={css.commandBar}>
-                <div className={css.commandRow}>
-                  {/* Only the coarse state is announced; the ticking clock below
-                      would otherwise re-announce once per second. */}
-                  <div className={css.commandState}>
-                    <span
-                      className={css.commandDot}
-                      data-state={picture.running ? 'running' : hasEdgeAlert ? 'alert' : 'idle'}
-                      aria-hidden="true"
-                    />
-                    <span className={css.commandStatus} aria-live="polite" data-alert={hasEdgeAlert ? '' : undefined}>{summaryState}</span>
-                    <span className={css.commandNow} aria-hidden="true" title={picture.running ? nowLabel : 'DSH-Watcher'}>
-                      {picture.running ? nowLabel : 'DSH-Watcher'}
-                    </span>
-                  </div>
-                  <div className={css.controlCounts}>
-                    <span data-kind="turns">
-                      {snapshot.hasMore && totalTurnCount > picture.turnCount
-                        ? `已载入 ${picture.turnCount}/${totalTurnCount} 轮`
-                        : `${picture.turnCount} 轮`}
-                    </span>
-                    <span data-kind="steps">
-                      {snapshot.hasMore && totalStepCount > picture.stepCount
-                        ? `${picture.stepCount}/${totalStepCount} 步`
-                        : `${picture.stepCount} 步`}
-                    </span>
-                    <span data-kind="actions">{picture.actionCount} 次执行</span>
-                  </div>
-                  <Pill
-                    className={css.follow}
-                    active={ui.follow}
-                    aria-pressed={ui.follow}
-                    aria-label={ui.follow ? '停止跟随最新工作' : '跟随最新工作'}
-                    onClick={() => {
-                      if (!ui.follow) programmaticScrollRef.current = true
-                      setUi(followRef.current.setFollow(!ui.follow))
-                    }}
-                  >
-                    <IconRefreshOutlineRegular size={12} />
-                    {ui.follow ? '自动跟随' : '浏览历史'}
-                  </Pill>
-                </div>
-              </header>
-
-              <div className={css.pathToolbar} aria-label="路径视图设置">
-                <Input
-                  className={css.filterInput}
-                  icon={<IconSearchOutlineRegular size={14} />}
-                  value={pathFilter.query}
-                  onChange={event => setPathFilter(current => ({ ...current, query: event.target.value }))}
-                  placeholder="搜索标题、工具或阶段"
-                  aria-label="搜索工作路径"
-                />
-                <SegmentedToggle
-                  label="路径筛选"
-                  value={pathFilter.status}
-                  onChange={(status: PathStatusFilter) => setPathFilter(current => ({ ...current, status }))}
-                  options={[
-                    { value: 'all', label: '全部', title: '显示全部记录' },
-                    { value: 'issues', label: '异常', title: '只显示失败与中断的记录' },
-                    { value: 'waiting', label: '等待', title: '只显示等待确认的记录' },
-                  ]}
-                />
-                <div className={css.controlViews}>
-                  <div className={css.viewControl}>
-                    <span className={css.viewToolbarLabel}>组织</span>
-                    <SegmentedToggle
-                      label="路径组织方式"
-                      value={observationMode}
-                      onChange={chooseObservationMode}
-                      options={[
-                        { value: 'itemized', label: '逐项', title: '按时间顺序展示每个步骤和每次执行' },
-                        { value: 'grouped', label: '归类', title: '按同一目标或完全相同的指令归类，展开仍可查看原始执行' },
-                      ]}
-                    />
-                  </div>
-                  <div className={css.viewControl}>
-                    <span className={css.viewToolbarLabel}>层级</span>
-                    <SegmentedToggle
-                      label="路径展开深度"
-                      value={disclosure.depth}
-                      onChange={chooseDepth}
-                      options={[
-                        { value: 'overview', label: '概览', title: '展开当前轮次，展示阶段概览；阶段内部保持收起' },
-                        { value: 'detail', label: '详情', title: '展开所有轮次、阶段、步骤、模型与推理记录' },
-                      ]}
-                    />
-                  </div>
-                </div>
-                <div className={css.pathHistory}>
-                  {snapshot.hasMore && historyLoad.kind !== 'loading' ? (
-                    <button
-                      type="button"
-                      className={css.loadOlderBtn}
-                      onClick={startOlderLoad}
-                      disabled={olderLoading}
-                      title="只往回载入一页历史；继续点击可逐页翻到会话开头"
-                    >
-                      {olderLoading ? '正在载入更早…' : '载入更早'}
-                    </button>
-                  ) : null}
-                  {snapshot.hasMore || historyLoad.kind === 'loading' || historyLoad.kind === 'error' ? (
-                    <button
-                      type="button"
-                      className={css.loadAllInlineBtn}
-                      onClick={startHistoryLoad}
-                      disabled={historyLoad.kind === 'loading'}
-                    >
-                      {historyLoad.kind === 'loading' ? '正在补齐历史…' : historyLoad.kind === 'error' ? '重试载入' : '载入全部历史 →'}
-                    </button>
-                  ) : null}
-                  {historyLoad.kind === 'loading' || historyLoad.kind === 'error' ? (
-                    <span role="status">{historyLoad.kind === 'error' ? historyLoad.message : `已载入 ${historyProgress}`}</span>
-                  ) : null}
-                </div>
-              </div>
-
-              <SessionInsights
-                value={wholeSessionInsights}
-                now={now}
+              <PanelHeader
+                status={summaryState}
+                nowLabel={nowLabel}
                 running={picture.running}
-                waiting={picture.pendingCount > 0}
-                onEvidence={locateEvidence}
+                alert={hasEdgeAlert}
+                searchActive={searchVisible}
+                tool={activeTool}
+                onToggleSearch={() => toggleTool('search')}
+                onToggleStats={() => toggleTool('stats')}
+                onToggleMenu={() => toggleTool('menu')}
+              />
+              <MetricsStrip
+                turns={turnsText}
+                steps={stepsText}
+                actions={actionsText}
+                loadingHint={historyProgress}
+                insights={wholeSessionInsights}
+                running={picture.running}
                 tokensPerSecond={liveTokensPerSecond}
               />
+              {searchVisible
+                ? (
+                  <SearchRow
+                    filter={pathFilter}
+                    onChange={setPathFilter}
+                    onClear={() => {
+                      setPathFilter(EMPTY_PATH_FILTER)
+                      setActiveTool(current => (current === 'search' ? 'none' : current))
+                    }}
+                  />
+                )
+                : null}
+              {activeTool === 'stats'
+                ? (
+                  <StatsPopover
+                    insights={wholeSessionInsights}
+                    now={now}
+                    running={picture.running}
+                    waiting={picture.pendingCount > 0}
+                    tokensPerSecond={liveTokensPerSecond}
+                    top={overlayTop}
+                    onEvidence={locateEvidence}
+                    onClose={closeTool}
+                  />
+                )
+                : null}
+              {activeTool === 'menu'
+                ? (
+                  <ViewMenu
+                    mode={observationMode}
+                    depth={disclosure.depth}
+                    hasMore={snapshot.hasMore}
+                    olderLoading={olderLoading}
+                    historyKind={historyLoad.kind}
+                    historyMessage={historyMessage}
+                    following={ui.follow}
+                    top={overlayTop}
+                    onMode={mode => { chooseObservationMode(mode); closeTool() }}
+                    onDepth={depth => { chooseDepth(depth); closeTool() }}
+                    onLoadOlder={() => { closeTool(); startOlderLoad() }}
+                    onLoadAll={() => { closeTool(); startHistoryLoad() }}
+                    onBackToLatest={() => { closeTool(); backToLatest() }}
+                  />
+                )
+                : null}
 
               {!ui.follow && ui.unread > 0
                 ? (
@@ -736,7 +727,6 @@ function ReadyWatcher({
                     className={css.unread}
                     onClick={selected === undefined ? backToLatest : () => closeInspector(true)}
                   >
-                    <IconRefreshOutlineRegular size={12} />
                     {ui.unread} 条新进展 · 查看最新
                   </button>
                 )
@@ -759,137 +749,33 @@ function ReadyWatcher({
                     </div>
                   )
                   : (
-                  <div ref={railRef} className={css.railViewport} onScroll={onRailScroll}>
-                    <div className={css.turns}>
-                      {visibleTurns.map(turn => {
-                        const isLatestTurn = turn.turn === latestTurnNumber
-                        const turnState = overviewStateOf(turn.status, isLatestTurn)
-                        const automaticDefaultOpen = turnNeedsDefaultDisclosure(turnState, isLatestTurn)
-                        const turnOpen = filterActive || turnDisclosureOpen(disclosure, turn.turn, automaticDefaultOpen)
-                        const turnTitle = turn.turn === 0 ? '会话准备' : `对话轮次 ${turn.turn}`
-                        const turnSummary = turnOverviewSummary(turn)
-                        const performance = performanceByTurn.get(turn.turn)
-                        const isLiveTurn = isLatestTurn && picture.running
-                        const duration = turnDuration(turn, isLiveTurn, now)
-                        const tokenSpeed = performance?.throughput.kind === 'measured'
-                          ? `${formatTokensPerSecond(performance.throughput.tokensPerSecond)} tok/s`
-                          : null
-                        const durationAria = duration === null
-                          ? ''
-                          : duration.kind === 'exact'
-                            ? `，总耗时 ${duration.value}`
-                            : `，已记录 ${duration.value}，开头未载入`
-                        const secondaryPerformance = [
-                          duration?.kind === 'partial' ? '开头未载入' : null,
-                          tokenSpeed,
-                        ].filter((value): value is string => value !== null).join(' · ')
-                        return (
-                          <section key={turn.turn} className={css.turn} data-state={turnState} aria-labelledby={`watcher-turn-${turn.turn}`}>
-                            <header className={css.turnHeader}>
-                              <h2 id={`watcher-turn-${turn.turn}`}>
-                                <button
-                                  type="button"
-                                  className={css.turnToggle}
-                                  aria-expanded={turnOpen}
-                                  aria-controls={`watcher-turn-body-${turn.turn}`}
-                                  aria-label={`${turnTitle}，${OVERVIEW_STATE_LABEL[turnState]}，${turnSummary}${durationAria}${tokenSpeed === null ? '' : `，生成速度 ${tokenSpeed}`}，${turnOpen ? '收起轮次' : '展开轮次'}`}
-                                  title={turnOpen ? '收起此轮次；新进展仍会继续更新' : '展开此轮次'}
-                                  onClick={() => {
-                                    pinForDisclosure()
-                                    setDisclosure(current => toggleTurnDisclosure(
-                                      current,
-                                      turn.turn,
-                                      automaticDefaultOpen,
-                                    ))
-                                  }}
-                                >
-                                  <IconChevronRightOutlineRegular size={13} className={css.turnChevron} />
-                                  <span className={css.turnNoWrap} aria-hidden="true">
-                                    <span className={css.turnNoLabel}>{turn.turn === 0 ? '准备' : '轮次'}</span>
-                                    <span className={css.turnNo}>{turn.turn === 0 ? '—' : turn.turn}</span>
-                                  </span>
-                                  <span className={css.turnCopy}>
-                                    <span className={css.turnTitleLine}>
-                                      {showOverviewTag(turnState)
-                                        ? <span className={css.overviewTag} data-state={turnState}>{OVERVIEW_STATE_LABEL[turnState]}</span>
-                                        : null}
-                                    </span>
-                                    <span className={css.turnSummary}>{turnSummary}</span>
-                                  </span>
-                                  <span className={css.turnPerformance}>
-                                    <span className={css.turnDuration}>
-                                      {duration === null
-                                        ? OVERVIEW_STATE_LABEL[turnState]
-                                        : duration.kind === 'exact'
-                                          ? `总 ${duration.value}`
-                                          : `已记录 ${duration.value}`}
-                                    </span>
-                                    {secondaryPerformance === '' ? null : <span className={css.turnSpeed}>{secondaryPerformance}</span>}
-                                  </span>
-                                </button>
-                              </h2>
-                            </header>
-                            {turnOpen ? (
-                            <div id={`watcher-turn-body-${turn.turn}`} className={css.turnBody}>
-                              <div className={css.groupRail}>
-                                <span className={css.railLine} aria-hidden="true" />
-                                {(() => {
-                                  const turnTotalMs = turn.groups.reduce(
-                                    (sum, group) => sum + (groupElapsedMs(group, isLiveTurn, now) ?? 0),
-                                    0,
-                                  )
-                                  return turn.groups.map(group => {
-                                    const isNow = group.id === lastGroupId
-                                    const selectedGroup = ui.selectedId === group.id
-                                    const phaseOpen = layerDisclosureOpen(disclosure, 'phase', group.id)
-                                    return (
-                                      <PhaseOverview
-                                        key={group.id}
-                                        group={group}
-                                        isNow={isNow}
-                                        running={picture.running}
-                                        turnTotalMs={turnTotalMs}
-                                        selectedGroup={selectedGroup}
-                                      selectedItemId={selectedItemId}
-                                      observationMode={observationMode}
-                                      open={phaseOpen}
-                                      disclosure={disclosure}
-                                      onToggle={() => {
-                                        pinForDisclosure()
-                                        setDisclosure(current => toggleLayerDisclosure(current, 'phase', group.id))
-                                      }}
-                                      onToggleLayer={(layer, key) => {
-                                        pinForDisclosure()
-                                        setDisclosure(current => toggleLayerDisclosure(current, layer, key))
-                                      }}
-                                      onToggleReasoning={(key, modelKey) => {
-                                        pinForDisclosure()
-                                        setDisclosure(current => {
-                                          const reasoningOpen = layerDisclosureOpen(current, 'reasoning', key)
-                                          const withOpenParent = reasoningOpen
-                                            ? current
-                                            : setLayerDisclosure(current, 'model', modelKey, true)
-                                          // Opening a nested reasoning record is explicit reading intent.
-                                          // Keep its parent open when the live model settles and its
-                                          // default changes after a depth switch or live update.
-                                          return toggleLayerDisclosure(withOpenParent, 'reasoning', key)
-                                        })
-                                      }}
-                                      onSelectItem={item => selectItem(group, item)}
-                                      filter={pathFilter}
-                                    />
-                                  )
-                                })
-                              })()}
-                              </div>
-                            </div>
-                            ) : null}
-                          </section>
-                        )
-                      })}
-                    </div>
-                  </div>
-              )}
+                    <PathTimeline
+                      turns={visibleTurns}
+                      viewportRef={railRef}
+                      onScroll={onRailScroll}
+                      performanceByTurn={performanceByTurn}
+                      latestTurnNumber={latestTurnNumber}
+                      running={picture.running}
+                      filterActive={filterActive}
+                      filter={pathFilter}
+                      mode={observationMode}
+                      disclosure={disclosure}
+                      lastGroupId={lastGroupId}
+                      lastItemId={lastItemId}
+                      selectedGroupId={ui.selectedId}
+                      selectedItemId={selectedItemId}
+                      hasMore={snapshot.hasMore}
+                      olderLoading={olderLoading}
+                      historyKind={historyLoad.kind}
+                      historyMessage={historyLoad.kind === 'error' ? historyLoad.message : null}
+                      onLoadOlder={startOlderLoad}
+                      onToggleTurn={toggleTurn}
+                      onTogglePhase={togglePhase}
+                      onToggleLayer={toggleLayer}
+                      onToggleReasoning={toggleReasoning}
+                      onSelectItem={selectItem}
+                    />
+                  )}
             </section>
             <div className={css.resizeEdgeRight} aria-hidden="true" onPointerDown={e => geometry.startResize(e, 'x')} />
             <div className={css.resizeEdgeBottom} aria-hidden="true" onPointerDown={e => geometry.startResize(e, 'y')} />

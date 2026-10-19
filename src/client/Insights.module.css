@@ -2190,3 +2190,43 @@
 }
 
 
+
+/* A popover readout drops the inline card chrome: the overlay already owns
+ * the surface, border and shadow. */
+.hudBoxFlat {
+  border-bottom: none;
+  background: transparent;
+}
+
+.hudBoxFlat .hudTop {
+  padding: 0 0 8px;
+}
+
+.hudBoxFlat .hudBody {
+  padding: 0;
+}
+
+.popoverClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ui-text-tertiary);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.popoverClose:hover {
+  background: var(--ui-hover);
+  color: var(--ui-text);
+}
+
+.popoverClose:focus-visible {
+  outline: var(--ui-focus-width) solid var(--ui-focus-ring);
+  outline-offset: 1px;
+}

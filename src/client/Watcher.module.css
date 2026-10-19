@@ -42,6 +42,7 @@
 }
 
 .trigger[data-live] { color: var(--ui-live); }
+
 .trigger[data-alert] { color: var(--ui-state-error); }
 
 .eye,
@@ -79,8 +80,7 @@
   left: auto;
   z-index: 1100;
   --ui-panel-max-height: min(680px, calc(100vh - 24px));
-  /* The panel is a fully opaque body: hierarchy comes from inset bands
-   * (--ui-surface-raised) and hairlines, never from translucency. */
+  
   box-sizing: border-box;
   display: flex;
   align-items: stretch;
@@ -89,9 +89,7 @@
   overflow: hidden;
   border: 1px solid var(--ui-line);
   border-radius: 12px;
-  /* The host's specific-menu token is itself translucent (frosted menus).
-   * Strip its alpha via relative color so the panel body is truly opaque;
-   * the plain fallback keeps old engines working (translucent, no blur). */
+  
   background: var(--ui-surface);
   background: rgb(from var(--ui-surface) r g b / 1);
   box-shadow: var(--ui-elevation-panel);
@@ -104,7 +102,6 @@
   isolation: isolate;
 }
 
-/* 用户显式拖拽出的尺寸覆盖自动布局：内容区随面板一起伸缩。 */
 .menu[data-sized] {
   max-width: none;
 }
@@ -164,6 +161,7 @@
 }
 
 .workPicture {
+  position: relative;
   display: flex;
   flex: none;
   flex-direction: column;
@@ -174,555 +172,39 @@
   background: transparent;
 }
 
-/* ── 指挥条：一行状态 + 一行下沉控制，取代旧的厚头部 ── */
-.commandBar {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  border-bottom: 1px solid var(--ui-line);
-}
-
-/* 顶部 2px 分类渐变：面板唯一的装饰，先把工作分类色亮出来 */
-.commandBar::before {
-  flex: none;
-  height: 2px;
-  background: linear-gradient(
-    90deg,
-    var(--ui-live) 0%,
-    var(--ui-cat-build) 34%,
-    var(--ui-cat-activate) 66%,
-    var(--ui-cat-plan) 100%
-  );
-  opacity: .8;
-  content: '';
-}
-
-.commandRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  min-height: 44px;
-  padding: 8px 14px;
-}
-
-.commandState {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.commandDot {
-  position: relative;
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--ui-text-tertiary);
-}
-
-.commandDot[data-state='running'] { background: var(--ui-live); }
-
-.commandDot[data-state='running']::after {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--ui-live) 45%, transparent);
-  animation: watcher-command-pulse 2.2s ease-in-out infinite;
-}
-
-.commandDot[data-state='alert'] { background: var(--ui-state-error); }
-
-@keyframes watcher-command-pulse {
-  0%, 100% { opacity: 0.9; transform: scale(0.6); }
-  55% { opacity: 0; transform: scale(1); }
-}
-
-.commandStatus {
-  flex: none;
-  color: var(--ui-text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 18px;
-  white-space: nowrap;
-}
-
-.commandStatus[data-alert] { color: var(--ui-state-error); }
-
-.commandNow {
-  flex: 1;
-  overflow: hidden;
-  min-width: 0;
-  color: var(--ui-text);
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 20px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pathToolbar {
-  display: flex;
-  flex: none;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--ui-line);
-}
-
-.filterInput {
-  flex: 1 1 160px;
-  min-width: 132px;
-  max-width: 240px;
-}
-
-.pathHistory {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-  color: var(--ui-text-tertiary);
-  font-size: 11px;
-  line-height: 16px;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Incremental paging is the primary history affordance; loading everything at
- * once stays available but reads as the secondary, heavier action. */
-.loadOlderBtn {
-  display: inline-flex;
-  align-items: center;
-  padding: 1px 7px;
-  border-radius: 4px;
-  border: 1px solid var(--ui-line);
-  background: var(--ui-surface);
-  color: var(--ui-text-secondary);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  line-height: 16px;
-  transition:
-    background-color var(--ui-motion-fast) var(--ui-ease),
-    color var(--ui-motion-fast) var(--ui-ease);
-}
-
-.loadOlderBtn:hover:not(:disabled) {
-  background: var(--ui-hover);
-  color: var(--ui-text);
-}
-
-.loadOlderBtn:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.controlCounts {
-  display: flex;
-  flex: none;
-  flex-wrap: wrap;
-  align-items: center;
-  min-width: 0;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  line-height: 18px;
-}
-
-.controlCounts span + span::before {
-  content: '·';
-  margin: 0 7px;
-  color: var(--ui-text-dimmed);
-}
-
-/* 三个计数各带一枚分类色：轮次=强调色，步骤=成功色，执行=警示色 */
-.controlCounts [data-kind='turns'] { color: var(--ui-chart-1); }
-.controlCounts [data-kind='steps'] { color: color-mix(in srgb, var(--ui-state-success) 82%, var(--ui-text)); }
-.controlCounts [data-kind='actions'] { color: color-mix(in srgb, var(--ui-state-warn) 82%, var(--ui-text)); }
-
-.controlViews {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 12px;
-}
-
-.loadAllInlineBtn {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 8px;
-  padding: 1px 7px;
-  border-radius: 4px;
-  border: 1px solid var(--ui-accent-line);
-  background: var(--ui-surface);
-  color: var(--ui-accent);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  line-height: 16px;
-  transition:
-    background-color var(--ui-motion-fast) var(--ui-ease),
-    color var(--ui-motion-fast) var(--ui-ease);
-}
-
-.loadAllInlineBtn:hover {
-  background: var(--ui-accent);
-  color: var(--ui-text-on-accent);
-}
-
-
-
-.viewControl {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 6px;
-}
-
-.viewToolbarLabel {
-  color: var(--ui-text-tertiary);
-  font-size: 11px;
-  line-height: 18px;
-  white-space: nowrap;
-}
-
-
-
-
-
-.follow {
-  flex: none;
-  margin-top: 2px;
-  white-space: nowrap;
-}
-
 .unread {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  width: calc(100% - 28px);
-  min-height: 34px;
-  margin: 10px 14px 0;
+  width: auto;
+  min-height: 30px;
+  margin: 0;
+  padding: 4px 14px;
   border: 1px solid var(--ui-ghost-active-line);
-  border-radius: 8px;
-  background: var(--ui-ghost-active-fill);
+  border-radius: 999px;
+  background: var(--ui-surface);
+  box-shadow: var(--ui-elevation-prominent);
   color: var(--ui-text);
   font: inherit;
   font-size: 12px;
   cursor: pointer;
+  transform: translateX(-50%);
 }
 
 .unread:hover { background: var(--ui-ghost-active-hover); }
 
-/* These controls sit inside a scroll container, so they carry the host focus
- * ring themselves instead of relying on the browser default. */
 .unread:focus-visible,
-.turnToggle:focus-visible,
-.phaseToggle:focus-visible,
-.stepToggle:focus-visible,
-.analysisClusterToggle:focus-visible,
 .modelStageToggle:focus-visible,
 .reasoningToggle:focus-visible,
-.groupedModelToggle:focus-visible,
 .recordStepButton:focus-visible,
 .inspectorBack:focus-visible {
   outline: var(--ui-focus-width) solid var(--ui-focus-ring);
   outline-offset: 1px;
-}
-
-.railViewport {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  overscroll-behavior: contain;
-  --dsh-scrollbar-thumb: var(--ui-scrollbar);
-  --dsh-scrollbar-thumb-hover: var(--ui-scrollbar-hover);
-}
-
-.turns { padding: 8px 10px 18px; }
-
-.turn {
-  /* Off-screen turns skip layout and paint entirely; the intrinsic estimate
-   * matches the collapsed row height so scrollbar and follow stay honest. */
-  content-visibility: auto;
-  contain-intrinsic-size: auto 52px;
-}
-
-.turn + .turn {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--ui-line);
-}
-
-/* 轮次序号与左侧竖线带上生命周期色，长会话里一眼找到当前轮与失败轮 */
-.turn[data-state='active'] .turnNo,
-.turn[data-state='current'] .turnNo { color: var(--ui-live); }
-.turn[data-state='waiting'] .turnNo { color: var(--ui-state-warn); }
-.turn[data-state='failure'] .turnNo,
-.turn[data-state='interrupted'] .turnNo { color: var(--ui-state-error); }
-
-.turn[data-state='active'] .turnNoWrap,
-.turn[data-state='current'] .turnNoWrap {
-  border-right-color: color-mix(in srgb, var(--ui-live) 38%, var(--ui-line));
-}
-.turn[data-state='failure'] .turnNoWrap,
-.turn[data-state='interrupted'] .turnNoWrap {
-  border-right-color: color-mix(in srgb, var(--ui-state-error) 38%, var(--ui-line));
-}
-
-.turn[data-state='active'] .railLine,
-.turn[data-state='current'] .railLine {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--ui-live) 60%, transparent),
-    var(--ui-line) 72%
-  );
-}
-
-.turnHeader {
-  padding: 0 2px 2px;
-}
-
-.turnHeader h2 { margin: 0; }
-
-.turnToggle {
-  display: grid;
-  grid-template-columns: 14px 44px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 50px;
-  padding: 6px 8px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.turnToggle:hover { background: var(--ui-hover); }
-
-.turnChevron {
-  color: var(--ui-text-tertiary);
-  transform: rotate(0deg);
-  transition: transform var(--ui-motion-fast) var(--ui-ease);
-}
-
-.turnToggle[aria-expanded='true'] .turnChevron { transform: rotate(90deg); }
-
-/* 章节编号块：轮次的视觉锚，右侧一道刻线分隔正文 */
-.turnNoWrap {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  align-self: stretch;
-  padding: 2px 0;
-  border-right: 1px solid var(--ui-line);
-}
-
-.turnNoLabel {
-  color: var(--ui-text-tertiary);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  line-height: 12px;
-}
-
-.turnNo {
-  margin-top: 1px;
-  color: var(--ui-text);
-  font-size: 19px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 22px;
-}
-
-.turnCopy {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-}
-
-.turnTitleLine {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  min-height: 18px;
-}
-
-.turnSummary {
-  overflow: hidden;
-  color: var(--ui-text);
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 18px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.turnDuration {
-  color: var(--ui-text-tertiary);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 400;
-  line-height: 18px;
-}
-
-.turnPerformance {
-  display: flex;
-  min-width: 62px;
-  flex-direction: column;
-  align-items: flex-end;
-  white-space: nowrap;
-}
-
-.turnDuration { white-space: nowrap; }
-
-.turnSpeed {
-  color: var(--ui-text-secondary);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 500;
-  line-height: 18px;
-}
-
-
-.groupRail {
-  position: relative;
-  padding-left: 18px;
-}
-
-.railLine {
-  position: absolute;
-  top: 14px;
-  bottom: 14px;
-  left: 23px;
-  width: 1px;
-  background: var(--ui-line);
-  pointer-events: none;
-}
-
-.phase {
-  position: relative;
-  z-index: 1;
-  box-sizing: border-box;
-  width: 100%;
-  padding: 1px 0 5px;
-}
-
-.phase + .phase {
-  margin-top: 2px;
-}
-
-/* 工作分类色：阶段行与记录行共用一套色相。--phase-hue 由阶段继承给记录，
- * 记录自己的 data-phase 若与阶段不同，则覆盖继承值。 */
-.phase[data-phase='plan'],
-.overviewOccurrence[data-phase='plan'] { --phase-hue: var(--ui-cat-plan); }
-.phase[data-phase='investigate'],
-.overviewOccurrence[data-phase='investigate'] { --phase-hue: var(--ui-cat-investigate); }
-.phase[data-phase='build'],
-.overviewOccurrence[data-phase='build'] { --phase-hue: var(--ui-cat-build); }
-.phase[data-phase='verify'],
-.overviewOccurrence[data-phase='verify'] { --phase-hue: var(--ui-cat-verify); }
-.phase[data-phase='activate'],
-.overviewOccurrence[data-phase='activate'] { --phase-hue: var(--ui-cat-activate); }
-.phase[data-phase='desktop'],
-.overviewOccurrence[data-phase='desktop'] { --phase-hue: var(--ui-cat-desktop); }
-.phase[data-phase='answer'],
-.overviewOccurrence[data-phase='answer'] { --phase-hue: var(--ui-cat-answer); }
-.phase[data-phase='model'],
-.overviewOccurrence[data-phase='model'] { --phase-hue: var(--ui-cat-model); }
-.phase[data-phase='wait'],
-.overviewOccurrence[data-phase='wait'] { --phase-hue: var(--ui-cat-wait); }
-.phase[data-phase='failure'],
-.overviewOccurrence[data-phase='failure'] { --phase-hue: var(--ui-cat-failure); }
-.phase[data-phase='request'],
-.phase[data-phase='steering'],
-.phase[data-phase='other'],
-.overviewOccurrence[data-phase='request'],
-.overviewOccurrence[data-phase='steering'],
-.overviewOccurrence[data-phase='other'] { --phase-hue: var(--ui-cat-neutral); }
-
-.phaseHeader {
-  position: relative;
-}
-
-/* 每阶段一行：标记 | 箭头 | 标题+徽章（弹性） | 统计（右侧），
- * 行底一条按耗时占比的状态色细线，扫一眼就知道时间花在哪。 */
-.phaseToggle {
-  position: relative;
-  display: grid;
-  grid-template-columns: 8px 11px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 7px;
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 34px;
-  padding: 2px 8px 3px 0;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.phaseToggle:hover { background: var(--ui-hover); }
-
-.phase[data-now] > .phaseHeader .phaseToggle {
-  border-radius: 7px;
-  background: color-mix(in srgb, var(--phase-hue, var(--ui-surface-raised)) 9%, var(--ui-surface-raised));
-}
-
-.phaseChevron,
-.stepChevron,
-.analysisClusterChevron {
-  color: var(--ui-text-tertiary);
-  transform: rotate(0deg);
-  transition: transform var(--ui-motion-fast) var(--ui-ease);
-}
-
-.phaseToggle[aria-expanded='true'] .phaseChevron,
-.stepToggle[aria-expanded='true'] .stepChevron,
-.analysisClusterToggle[aria-expanded='true'] .analysisClusterChevron {
-  transform: rotate(90deg);
-}
-
-.phaseMarker {
-  position: relative;
-  box-sizing: border-box;
-  display: block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--ui-text-tertiary);
-  box-shadow: 0 0 0 3px var(--ui-surface);
-}
-
-.phaseMarker[data-state='active'],
-.phaseMarker[data-state='current'] { background: var(--ui-live); }
-.phaseMarker[data-state='waiting'] { background: var(--ui-state-warn); }
-.phaseMarker[data-state='failure'],
-.phaseMarker[data-state='interrupted'] { background: var(--ui-state-error); }
-.phaseMarker[data-state='partial'] {
-  border: 1px dashed var(--ui-text-tertiary);
-  background: var(--ui-surface);
-}
-
-/* 状态点外再套一圈 1px 分类色，状态语义不被抢走，分类一眼可辨 */
-.phase[data-phase] .phaseMarker {
-  box-shadow:
-    0 0 0 3px var(--ui-surface),
-    0 0 0 4px color-mix(in srgb, var(--phase-hue, var(--ui-line)) 62%, transparent);
 }
 
 .neutralDot {
@@ -741,64 +223,7 @@
   background: var(--ui-surface);
 }
 
-.phaseTitleLine {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  min-width: 0;
-}
-
-.phaseTitle {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--ui-text);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 18px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.phaseMeta {
-  margin: 0;
-  overflow: hidden;
-  color: var(--ui-text-tertiary);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  line-height: 16px;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* 耗时占比条：贴在阶段行底，宽 = 该阶段耗时 / 本轮总耗时 */
-.phaseDurBar {
-  position: absolute;
-  bottom: 0;
-  left: 26px;
-  height: 2px;
-  border-radius: 1px;
-  background: color-mix(in srgb, var(--phase-hue, var(--ui-text-tertiary)) 62%, transparent);
-  pointer-events: none;
-}
-
-.phaseDurBar[data-state='active'],
-.phaseDurBar[data-state='current'] { background: color-mix(in srgb, var(--ui-live) 55%, transparent); }
-.phaseDurBar[data-state='waiting'] { background: color-mix(in srgb, var(--ui-state-warn) 55%, transparent); }
-.phaseDurBar[data-state='failure'],
-.phaseDurBar[data-state='interrupted'] { background: color-mix(in srgb, var(--ui-state-error) 55%, transparent); }
-
-.groupBadges {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: 4px;
-}
-
-.groupBadges span,
-.overviewTag,
-.patternLabel,
-.parallelLabel {
+.patternLabel {
   display: inline-flex;
   align-items: center;
   min-height: 16px;
@@ -811,98 +236,6 @@
   font-variant-numeric: tabular-nums;
   line-height: 14px;
   white-space: nowrap;
-}
-
-.groupBadges [data-kind='retry'] { color: var(--ui-state-error); }
-.groupBadges [data-kind='parallel'] { color: var(--ui-live); }
-.overviewTag[data-state='active'],
-.overviewTag[data-state='current'] { color: var(--ui-live); }
-.overviewTag[data-state='waiting'] { color: var(--ui-state-warn); }
-.overviewTag[data-state='failure'],
-.overviewTag[data-state='interrupted'] { color: var(--ui-state-error); }
-.overviewTag[data-state='partial'] { color: var(--ui-text-tertiary); }
-
-.stepTimeline {
-  position: relative;
-  margin: 1px 8px 0 28px;
-  padding-left: 11px;
-  border-left: 1px solid color-mix(in srgb, var(--phase-hue, var(--ui-line)) 30%, var(--ui-line));
-}
-
-.overviewStep {
-  position: relative;
-  min-width: 0;
-}
-
-.overviewStep + .overviewStep {
-  margin-top: 10px;
-  padding-top: 8px;
-}
-
-.overviewStep::before {
-  position: absolute;
-  top: 13px;
-  left: -12px;
-  width: 8px;
-  height: 1px;
-  background: color-mix(in srgb, var(--phase-hue, var(--ui-line)) 55%, var(--ui-line));
-  content: '';
-}
-
-.overviewStepHeader {
-  min-height: 29px;
-}
-
-.stepToggle {
-  display: grid;
-  grid-template-columns: 12px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 5px;
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 29px;
-  padding: 2px 4px 2px 0;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.stepToggle:hover { background: var(--ui-hover); }
-
-.overviewStepLabel,
-.overviewStepSignals {
-  color: var(--ui-text-tertiary);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  line-height: 18px;
-}
-
-.overviewStepLabel {
-  min-width: 0;
-  overflow: hidden;
-  font-family: var(--ui-font-mono);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.overviewStepSignals {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.overviewOccurrences {
-  position: relative;
-}
-
-.overviewStep[data-parallel] .overviewOccurrences {
-  padding-left: 5px;
-  border-left: 1px solid color-mix(in srgb, var(--ui-live) 55%, var(--ui-line));
 }
 
 .modelStage {
@@ -936,21 +269,18 @@
 }
 
 .modelStageToggle:hover,
-.reasoningToggle:hover,
-.groupedModelToggle:hover {
+.reasoningToggle:hover {
   background: var(--ui-hover);
 }
 
 .modelStageChevron,
-.reasoningChevron,
-.groupedModelChevron {
+.reasoningChevron {
   color: var(--ui-text-tertiary);
   transition: transform var(--ui-motion-fast) var(--ui-ease);
 }
 
 .modelStageToggle[aria-expanded='true'] .modelStageChevron,
-.reasoningToggle[aria-expanded='true'] .reasoningChevron,
-.groupedModelToggle[aria-expanded='true'] .groupedModelChevron {
+.reasoningToggle[aria-expanded='true'] .reasoningChevron {
   transform: rotate(90deg);
 }
 
@@ -1009,10 +339,13 @@
 
 .modelStageBar [data-segment='wait'],
 .modelStageSwatch[data-segment='wait'] { background: var(--ui-text-dimmed); }
+
 .modelStageBar [data-segment='reasoning'],
 .modelStageSwatch[data-segment='reasoning'] { background: var(--ui-accent); }
+
 .modelStageBar [data-segment='output'],
 .modelStageSwatch[data-segment='output'] { background: var(--ui-text-secondary); }
+
 .modelStageBar [data-segment='unattributed'],
 .modelStageSwatch[data-segment='unattributed'] { background: var(--ui-state-warn); }
 
@@ -1037,7 +370,9 @@
 
 .modelStageMetric dt,
 .modelStageMetric dd { margin: 0; }
+
 .modelStageMetric dt { display: inline-flex; min-width: 0; align-items: center; gap: 6px; }
+
 .modelStageMetric dd { flex: none; color: var(--ui-text-secondary); text-align: right; }
 
 .modelStageSwatch {
@@ -1121,321 +456,8 @@
 }
 
 .reasoningBody > :global(*) { margin-top: 0; margin-bottom: 8px; }
+
 .reasoningBody > :global(*:last-child) { margin-bottom: 0; }
-.reasoningBody :global(.md-code-block) { max-width: 100%; }
-
-.groupedModelStages {
-  position: relative;
-  margin-bottom: 9px;
-  overflow: hidden;
-  border: 1px solid var(--ui-line);
-  border-radius: 7px;
-  background: var(--ui-surface-raised);
-}
-
-.groupedModelStages::before {
-  position: absolute;
-  top: 20px;
-  left: -12px;
-  width: 8px;
-  height: 1px;
-  background: var(--ui-line);
-  content: '';
-}
-
-.groupedModelToggle {
-  display: grid;
-  grid-template-columns: 12px minmax(0, 1fr);
-  align-items: center;
-  gap: 7px;
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 44px;
-  padding: 5px 9px;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.groupedModelToggle > span {
-  display: flex;
-  min-width: 0;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.groupedModelToggle strong { color: var(--ui-text); font-size: 13px; line-height: 20px; }
-.groupedModelToggle small {
-  overflow: hidden;
-  color: var(--ui-text-tertiary);
-  font-size: 12px;
-  line-height: 18px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.groupedModelList {
-  padding: 0 7px 8px 22px;
-  border-top: 1px solid var(--ui-line);
-}
-
-.groupedModelStep { min-width: 0; padding-top: 8px; }
-.groupedModelStep + .groupedModelStep { border-top: 1px solid var(--ui-line); }
-.groupedModelStepLabel {
-  display: block;
-  margin: 0 2px 4px;
-  color: var(--ui-text-tertiary);
-  font-family: var(--ui-font-mono);
-  font-size: 12px;
-  line-height: 18px;
-}
-
-.analysisClusters {
-  position: relative;
-  margin: 1px 8px 0 28px;
-  padding-left: 11px;
-  border-left: 1px solid var(--ui-line);
-}
-
-.analysisCluster {
-  position: relative;
-  min-width: 0;
-}
-
-.analysisSingleton {
-  position: relative;
-  min-width: 0;
-}
-
-.analysisCluster + .analysisCluster,
-.analysisCluster + .analysisSingleton,
-.analysisSingleton + .analysisCluster,
-.analysisSingleton + .analysisSingleton {
-  margin-top: 6px;
-}
-
-.analysisCluster::before,
-.analysisSingleton::before {
-  position: absolute;
-  top: 20px;
-  left: -12px;
-  width: 8px;
-  height: 1px;
-  background: var(--ui-line);
-  content: '';
-}
-
-.analysisClusterToggle {
-  display: grid;
-  grid-template-columns: 12px 10px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 7px;
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 46px;
-  padding: 5px 6px 5px 4px;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.analysisClusterToggle:hover { background: var(--ui-hover); }
-
-.analysisCluster[data-open] > .analysisClusterToggle {
-  border-color: var(--ui-line);
-  background: var(--ui-surface-raised);
-}
-
-.analysisClusterDotSlot {
-  position: relative;
-  display: block;
-  width: 10px;
-  height: 10px;
-}
-
-.analysisClusterDot {
-  position: absolute !important;
-  inset: 0;
-}
-
-.analysisClusterCopy {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-}
-
-.analysisClusterTitle {
-  overflow: hidden;
-  color: var(--ui-text);
-  font-size: 14px;
-  font-weight: 550;
-  line-height: 20px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.analysisClusterMeta {
-  overflow: hidden;
-  color: var(--ui-text-tertiary);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  line-height: 18px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.analysisClusterCount {
-  min-width: 28px;
-  color: var(--ui-text-secondary);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  line-height: 18px;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.analysisClusterItems {
-  margin: 3px 0 8px 17px;
-  padding-left: 5px;
-  border-left: 1px solid var(--ui-line);
-}
-
-.overviewOccurrence {
-  position: relative;
-  /* 记录默认继承阶段的分类色 */
-  --item-hue: var(--phase-hue, var(--ui-line));
-  display: grid;
-  grid-template-columns: 22px 10px minmax(0, 1fr) auto 12px;
-  align-items: center;
-  gap: 7px;
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 45px;
-  padding: 5px 5px 5px 7px;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    background-color var(--ui-motion-fast) var(--ui-ease),
-    border-color var(--ui-motion-fast) var(--ui-ease),
-    box-shadow var(--ui-motion-fast) var(--ui-ease);
-  animation: watcher-live-append var(--ui-motion-fast) var(--ui-ease);
-}
-
-.overviewOccurrence + .overviewOccurrence { margin-top: 2px; }
-.overviewOccurrence:hover { background: var(--ui-hover); }
-
-.overviewOccurrence[data-current]:not([data-selected]) {
-  background: var(--ui-surface-raised);
-}
-
-.overviewOccurrence[data-selected] {
-  border-color: var(--ui-ghost-active-line);
-  background: var(--ui-ghost-active-fill);
-  box-shadow: inset 2px 0 0 var(--ui-accent);
-}
-
-/* 每条记录左侧 2px 分类色边：颜色来自它自己的阶段分类，选中时让位给强调色 */
-.overviewOccurrence::before {
-  position: absolute;
-  top: 9px;
-  bottom: 9px;
-  left: 0;
-  width: 2px;
-  border-radius: 1px;
-  background: color-mix(in srgb, var(--item-hue) 82%, transparent);
-  pointer-events: none;
-  content: '';
-}
-
-.overviewOccurrence[data-selected]::before { background: var(--ui-accent); }
-
-.overviewOccurrenceIndex {
-  color: var(--ui-text-dimmed);
-  font-family: var(--ui-font-mono);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  line-height: 18px;
-  text-align: right;
-}
-
-.overviewOccurrenceDotSlot {
-  position: relative;
-  display: block;
-  width: 10px;
-  height: 10px;
-}
-
-.overviewOccurrenceDot {
-  position: absolute !important;
-  inset: 0;
-}
-
-.overviewOccurrenceCopy {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-}
-
-.overviewOccurrenceTitle {
-  overflow: hidden;
-  color: var(--ui-text);
-  font-size: 14px;
-  font-weight: 550;
-  line-height: 20px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.overviewOccurrenceMeta {
-  overflow: hidden;
-  color: var(--ui-text-tertiary);
-  font-family: var(--ui-font-mono);
-  font-size: 12px;
-  line-height: 18px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.overviewOccurrenceDuration {
-  color: var(--ui-text-tertiary);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  line-height: 18px;
-  white-space: nowrap;
-}
-
-.overviewOccurrenceChevron {
-  color: var(--ui-text-dimmed);
-  opacity: 0;
-  transform: translateX(-2px);
-  transition: opacity var(--ui-motion-fast) ease, transform var(--ui-motion-fast) ease;
-}
-
-.overviewOccurrence:hover .overviewOccurrenceChevron,
-.overviewOccurrence[data-selected] .overviewOccurrenceChevron,
-.overviewOccurrence:focus-visible .overviewOccurrenceChevron {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-@keyframes watcher-live-append {
-  from { opacity: .5; transform: translateY(-2px); }
-  to { opacity: 1; transform: translateY(0); }
-}
 
 .empty {
   display: flex;
@@ -1468,8 +490,6 @@
   line-height: 18px;
 }
 
-/* 覆盖式右抽屉：浮于工作路径之上而不是把它挤窄——主列阅读位置在查看
- * 详情前后保持不动，面板宽度恒定，fixed 定位不再随宽度变化而跳动。 */
 .inspector {
   position: absolute;
   top: 0;
@@ -1506,7 +526,6 @@
   border-bottom: 1px solid var(--ui-line);
 }
 
-/* 定位行：返回路径 + 记录步进器；查看一条记录不再需要回到列表里找下一条 */
 .inspectorLocator {
   display: flex;
   align-items: center;
@@ -1555,8 +574,6 @@
   text-align: center;
 }
 
-/* Docked layout keeps this control visible: it is the only way back to the
- * work path, so hiding it left the inspector permanently open. */
 .inspectorBack {
   display: inline-flex;
   align-items: center;
@@ -1595,6 +612,7 @@
 
 .statusLine[data-status='running'],
 .detailStatus[data-status='running'] { color: var(--ui-live); }
+
 .statusLine[data-status='waiting'],
 .detailStatus[data-status='waiting'] { color: var(--ui-state-warn); }
 
@@ -1640,6 +658,7 @@
 }
 
 .groupSignals [data-retry] { color: var(--ui-state-warn); }
+
 .groupSignals [data-error] { color: var(--ui-state-error); }
 
 .inspectorBody {
@@ -1649,11 +668,6 @@
   overscroll-behavior: contain;
   --dsh-scrollbar-thumb: var(--ui-scrollbar);
   --dsh-scrollbar-thumb-hover: var(--ui-scrollbar-hover);
-}
-
-.parallelLabel {
-  color: var(--ui-live);
-  font-family: var(--ui-font);
 }
 
 .detailSection { padding: 16px; }
@@ -1698,7 +712,9 @@
 }
 
 .metrics dt { color: var(--ui-text-tertiary); }
+
 .metrics dd { margin: 0; color: var(--ui-text-secondary); text-align: right; }
+
 .metrics [data-error] { color: var(--ui-state-error); }
 
 .tabs {
@@ -1723,7 +739,9 @@
 }
 
 .tab:hover { color: var(--ui-text); }
+
 .tab[data-active] { color: var(--ui-text); font-weight: 600; }
+
 .tab[data-active]::after {
   content: '';
   position: absolute;
@@ -1742,7 +760,9 @@
 }
 
 .tabPanel > :global(*) { margin-top: 0; margin-bottom: 0; }
+
 .jsonSurface { overflow: auto; font-size: 13px; }
+
 .jsonSurface :global([role='tree']) { font-size: 13px; line-height: 20px; }
 
 .rawPanel pre {
@@ -1761,10 +781,6 @@
   min-width: 0;
   padding: 2px 2px 8px;
   color: var(--ui-text);
-}
-
-.documentResult :global(.md-code-block) {
-  max-width: 100%;
 }
 
 .documentResult :global(blockquote) {
@@ -1839,7 +855,9 @@
 }
 
 .artifactResult > span { margin-top: 2px; font-size: 12px; }
+
 .artifactResult .jsonSurface { width: 100%; margin-top: 12px; text-align: left; }
+
 .artifactGlyph { color: var(--ui-accent); font-size: 24px; line-height: 28px; }
 
 .inspectorFooter {
@@ -1852,110 +870,100 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* Instant, but still an animation: the inspector unmounts on
-   * `animationend`, so disabling it outright would stall the collapse. */
-  .inspector,
-  .inspector > * { animation: none; }
-  .inspector[data-closing],
-  .inspector[data-closing] > * { animation-duration: .01ms; animation-delay: 0s; }
+.inspector,
+.inspector > * { animation: none; }
 
-  .menu,
-  .trigger[data-live] .eyePupil,
-  .trigger[data-live] .eyeBlink {
+.inspector[data-closing],
+.inspector[data-closing] > * { animation-duration: .01ms; animation-delay: 0s; }
+
+.menu,
+.trigger[data-live] .eyePupil,
+.trigger[data-live] .eyeBlink {
     animation: none;
   }
 
-  .trigger,
-  .overviewOccurrence,
-  .turnChevron,
-  .phaseChevron,
-  .stepChevron,
-  .analysisClusterChevron,
-  .modelStageChevron,
-  .reasoningChevron,
-  .groupedModelChevron,
-  .overviewOccurrenceChevron {
+.trigger,
+.modelStageChevron,
+.reasoningChevron {
     transition-duration: .01ms;
   }
 
-  .overviewOccurrence { animation: none; }
-
-  .root :global([data-state='ongoing'] rect),
-  .menu :global([data-state='ongoing'] rect) {
+.root :global([data-state='ongoing'] rect),
+.menu :global([data-state='ongoing'] rect) {
     animation: none !important;
     opacity: .55;
   }
 }
 
 @media (max-width: 860px) {
-  .menu {
+.menu {
     flex-direction: column-reverse;
     width: min(720px, calc(100vw - 24px));
     max-height: calc(100vh - 88px);
   }
 
-  .workPicture {
+.workPicture {
     width: auto;
     min-height: 250px;
     max-height: none;
   }
 
-  .menu:not(:has(.inspector)) {
+.menu:not(:has(.inspector)) {
     height: min(680px, calc(100vh - 88px));
   }
 
-  .menu:not(:has(.inspector)) .workPicture {
+.menu:not(:has(.inspector)) .workPicture {
     flex: 1 1 auto;
   }
 
-  .inspector {
+.inspector {
     width: auto;
     max-height: none;
     border-right: 0;
   }
 
-  .menu:has(.inspector) {
+.menu:has(.inspector) {
     height: min(680px, calc(100vh - 88px));
   }
 
-  .menu:has(.inspector) .workPicture {
+.menu:has(.inspector) .workPicture {
     display: none;
   }
 
-  .menu:has(.inspector) .inspector {
+.menu:has(.inspector) .inspector {
     flex: 1 1 auto;
     min-height: 0;
     max-height: none;
   }
 
-  /* Drill-down layout: the inspector replaces the work path, so the same
-   * control reads as a back chevron instead of the docked collapse chevron. */
-  .inspectorBack svg { transform: rotate(180deg); }
-  .inspectorHeader { padding-top: 14px; }
+.inspectorBack svg { transform: rotate(180deg); }
+
+.inspectorHeader { padding-top: 14px; }
 }
 
 @media (max-width: 520px) {
-  .menu { width: calc(100vw - 24px); }
-  .turns { padding-inline: 6px; }
-  .groupBadges span:nth-child(n+2) { display: none; }
-  .inspectorHeader,
-  .detailSection { padding-inline: 12px; }
-  .detailHeader { grid-template-columns: 1fr; }
-  .metrics { grid-template-columns: auto 1fr; }
-  .metrics dd { text-align: left; }
-  .modelStageCopy { grid-template-columns: 1fr; gap: 0; }
-  .modelStageSummary { white-space: normal; }
-  .modelStageLedger { grid-template-columns: 1fr; }
-  .reasoningToggle { grid-template-columns: 12px minmax(0, 1fr); }
-  .reasoningMeta { grid-column: 2; text-align: left; white-space: normal; }
-  .groupedModelToggle > span { display: grid; gap: 0; }
-  .groupedModelToggle small { white-space: normal; }
-  .groupedModelList { padding-left: 12px; }
+.menu { width: calc(100vw - 24px); }
+
+.inspectorHeader,
+.detailSection { padding-inline: 12px; }
+
+.detailHeader { grid-template-columns: 1fr; }
+
+.metrics { grid-template-columns: auto 1fr; }
+
+.metrics dd { text-align: left; }
+
+.modelStageCopy { grid-template-columns: 1fr; gap: 0; }
+
+.modelStageSummary { white-space: normal; }
+
+.modelStageLedger { grid-template-columns: 1fr; }
+
+.reasoningToggle { grid-template-columns: 12px minmax(0, 1fr); }
+
+.reasoningMeta { grid-column: 2; text-align: left; white-space: normal; }
 }
 
-/* 宽面板把详情停靠在右侧：路径与记录同时可见，不再互相覆盖。
- * data-split 由脚本按面板实测宽度写入，窄面板仍走覆盖式抽屉。
- * 详情在 DOM 里排在路径之前（覆盖模式靠绝对定位），横向布局时用 order 换回右侧。 */
 .menu[data-split]:has(.inspector) {
   flex-direction: row;
 }

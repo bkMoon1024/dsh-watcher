@@ -1,0 +1,783 @@
+/* The work-picture panel: status bar, one quiet metrics line, and the path.
+ *
+ * Everything here resolves through `ui/tokens.module.css`, which maps the host
+ * `--dsw-*` semantics onto `--ui-*`. The panel deliberately owns no palette of
+ * its own; categorical hues come from the shared series tokens. */
+
+/* ── Status bar ─────────────────────────────────────────────────────────── */
+
+.statusBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  height: 44px;
+  padding: 0 8px 0 14px;
+  border-bottom: 1px solid var(--ui-line);
+}
+
+.statusLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.statusDot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ui-text-tertiary);
+}
+
+.statusDot[data-state='running'] { background: var(--ui-live); }
+.statusDot[data-state='alert'] { background: var(--ui-state-error); }
+
+.statusText {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ui-text);
+  white-space: nowrap;
+}
+
+.statusText[data-alert] { color: var(--ui-state-error); }
+
+.statusNow {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--ui-text-tertiary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.statusNow::before {
+  content: '·';
+  margin: 0 6px;
+  color: var(--ui-text-dimmed);
+}
+
+.iconBar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.iconButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ui-text-secondary);
+  cursor: pointer;
+}
+
+.iconButton:hover { background: var(--ui-hover); color: var(--ui-text); }
+.iconButton[data-active] { background: var(--ui-ghost-active-fill); color: var(--ui-text); }
+.iconButton:focus-visible,
+.turnToggle:focus-visible,
+.phaseToggle:focus-visible,
+.stepToggle:focus-visible,
+.clusterToggle:focus-visible,
+.itemRow:focus-visible,
+.moreButton:focus-visible,
+.clearButton:focus-visible,
+.menuItem:focus-visible,
+.modelSummaryToggle:focus-visible {
+  outline: var(--ui-focus-width) solid var(--ui-focus-ring);
+  outline-offset: 1px;
+}
+
+.badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ui-state-error);
+}
+
+/* ── Metrics line ───────────────────────────────────────────────────────── */
+
+.metrics {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  padding: 4px 14px 6px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--ui-text-tertiary);
+  font-variant-numeric: var(--ui-num);
+  white-space: nowrap;
+}
+
+.metricCounts { color: var(--ui-text-secondary); }
+
+.metricUsage {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metricDot { color: var(--ui-text-dimmed); }
+.metricCost { color: var(--ui-text-secondary); }
+
+.metricSpeed {
+  margin-left: auto;
+  color: var(--ui-text-tertiary);
+}
+
+.metricSpeed[data-live] { color: var(--ui-live); }
+
+/* ── Search row ─────────────────────────────────────────────────────────── */
+
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 6px 14px 8px;
+  border-bottom: 1px solid var(--ui-line);
+}
+
+.searchInput { flex: 1; min-width: 0; }
+
+.clearButton {
+  flex: none;
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ui-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.clearButton:hover { background: var(--ui-hover); color: var(--ui-text); }
+
+.searchHint {
+  flex: none;
+  font-size: 11px;
+  color: var(--ui-text-dimmed);
+  white-space: nowrap;
+}
+
+/* ── Overlays ───────────────────────────────────────────────────────────── */
+
+.popover {
+  position: absolute;
+  right: 10px;
+  z-index: 30;
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-line);
+  border-radius: 10px;
+  box-shadow: 0 14px 34px rgba(20, 24, 35, .14);
+}
+
+.statsPopover {
+  width: 336px;
+  max-width: calc(100% - 20px);
+  padding: 10px 12px 12px;
+}
+
+.statsEmpty {
+  margin: 0;
+  padding: 14px 10px 16px;
+  max-width: 300px;
+  color: var(--ui-text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  text-wrap: pretty;
+}
+
+.viewMenu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 248px;
+  padding: 10px;
+}
+
+.menuRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ui-text-secondary);
+}
+
+.menuRowLabel { flex: none; }
+
+.menuDivider {
+  height: 1px;
+  background: var(--ui-line);
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ui-text);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menuItem:hover:not(:disabled) { background: var(--ui-hover); }
+.menuItem:disabled { color: var(--ui-text-dimmed); cursor: default; }
+
+.menuItemHint {
+  flex: none;
+  font-size: 11px;
+  color: var(--ui-text-tertiary);
+}
+
+.menuStatus {
+  margin: 0;
+  padding: 0 8px 2px;
+  font-size: 11px;
+  color: var(--ui-state-warn);
+}
+
+/* ── Turn headers ───────────────────────────────────────────────────────── */
+
+.turn { position: relative; }
+
+.turnHeader {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--ui-surface);
+}
+
+.turnHeading {
+  margin: 0;
+  font: inherit;
+}
+
+.turnToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 33px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--ui-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.turnToggle:hover { background: var(--ui-hover); }
+
+.turnChevron {
+  flex: none;
+  color: var(--ui-text-tertiary);
+  transition: transform var(--ui-motion-fast) var(--ui-ease);
+}
+
+.turnToggle[aria-expanded='true'] .turnChevron { transform: rotate(90deg); }
+
+.turnLabel {
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ui-text);
+  white-space: nowrap;
+}
+
+.turnSummary {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--ui-text-tertiary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.turnPerf {
+  display: flex;
+  gap: 8px;
+  flex: none;
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--ui-text-tertiary);
+  font-variant-numeric: var(--ui-num);
+  white-space: nowrap;
+}
+
+.turnSpeed { color: var(--ui-text-tertiary); }
+
+.turnBody { padding-bottom: 4px; }
+
+/* ── State tags ─────────────────────────────────────────────────────────── */
+
+.stateTag {
+  flex: none;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 10px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.stateTag[data-state='active'],
+.stateTag[data-state='current'] { color: var(--ui-live); background: var(--ui-live-fill); }
+.stateTag[data-state='waiting'] { color: var(--ui-state-warn); background: var(--ui-state-warn-fill); }
+.stateTag[data-state='failure'],
+.stateTag[data-state='interrupted'] { color: var(--ui-state-error); background: var(--ui-state-error-fill); }
+.stateTag[data-state='partial'] { color: var(--ui-text-tertiary); background: var(--ui-surface-sunken); }
+
+/* ── Phases ─────────────────────────────────────────────────────────────── */
+
+.phase {
+  position: relative;
+  --phase-hue: var(--ui-cat-neutral);
+}
+
+.phase[data-phase='plan'] { --phase-hue: var(--ui-cat-plan); }
+.phase[data-phase='investigate'] { --phase-hue: var(--ui-cat-investigate); }
+.phase[data-phase='build'] { --phase-hue: var(--ui-cat-build); }
+.phase[data-phase='verify'] { --phase-hue: var(--ui-cat-verify); }
+.phase[data-phase='activate'] { --phase-hue: var(--ui-cat-activate); }
+.phase[data-phase='desktop'] { --phase-hue: var(--ui-cat-desktop); }
+.phase[data-phase='answer'] { --phase-hue: var(--ui-cat-answer); }
+.phase[data-phase='model'] { --phase-hue: var(--ui-cat-model); }
+.phase[data-phase='wait'] { --phase-hue: var(--ui-cat-wait); }
+.phase[data-phase='failure'] { --phase-hue: var(--ui-cat-failure); }
+.phase[data-phase='request'],
+.phase[data-phase='steering'],
+.phase[data-phase='other'] { --phase-hue: var(--ui-cat-neutral); }
+
+.phaseHeader { position: relative; }
+
+.phaseHeader::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 7px;
+  bottom: 7px;
+  width: 2px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--phase-hue) 55%, transparent);
+}
+
+.phaseToggle {
+  display: grid;
+  grid-template-columns: 12px 8px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 30px;
+  padding: 0 14px 0 16px;
+  border: 0;
+  background: transparent;
+  color: var(--ui-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.phaseToggle:hover { background: var(--ui-hover); }
+
+.phaseChevron {
+  color: var(--ui-text-tertiary);
+  transition: transform var(--ui-motion-fast) var(--ui-ease);
+}
+
+.phaseToggle[aria-expanded='true'] .phaseChevron { transform: rotate(90deg); }
+
+.phaseMarker {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--phase-hue) 72%, transparent);
+}
+
+.phaseMarker[data-state='active'] { background: var(--ui-live); }
+.phaseMarker[data-state='waiting'] { background: var(--ui-state-warn); }
+.phaseMarker[data-state='failure'],
+.phaseMarker[data-state='interrupted'] { background: var(--ui-state-error); }
+
+.phaseTitle {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ui-text);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.phaseSignal {
+  flex: none;
+  padding: 0 4px;
+  border: 1px solid var(--ui-line);
+  border-radius: 4px;
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--ui-text-tertiary);
+  white-space: nowrap;
+}
+
+.phaseMeta {
+  flex: none;
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--ui-text-tertiary);
+  font-variant-numeric: var(--ui-num);
+  white-space: nowrap;
+}
+
+.phaseBody { padding-bottom: 2px; }
+
+/* ── Steps ──────────────────────────────────────────────────────────────── */
+
+.stepList {
+  display: flex;
+  flex-direction: column;
+}
+
+.step { position: relative; }
+
+.stepToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 24px;
+  padding: 0 14px 0 30px;
+  border: 0;
+  background: transparent;
+  color: var(--ui-text-secondary);
+  font-size: 11px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.stepToggle:hover { background: var(--ui-hover); }
+
+.stepChevron {
+  flex: none;
+  color: var(--ui-text-tertiary);
+  transition: transform var(--ui-motion-fast) var(--ui-ease);
+}
+
+.stepToggle[aria-expanded='true'] .stepChevron { transform: rotate(90deg); }
+
+.stepLabel {
+  flex: none;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ui-text-secondary);
+}
+
+.stepSignals {
+  display: flex;
+  gap: 8px;
+  flex: none;
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--ui-text-tertiary);
+  font-variant-numeric: var(--ui-num);
+  white-space: nowrap;
+}
+
+.stepBody { padding-bottom: 2px; }
+
+/* ── Groups (归类) ──────────────────────────────────────────────────────── */
+
+.clusterList {
+  display: flex;
+  flex-direction: column;
+}
+
+.cluster { position: relative; }
+
+.clusterToggle {
+  display: grid;
+  grid-template-columns: 12px 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 28px;
+  padding: 0 14px 0 30px;
+  border: 0;
+  background: transparent;
+  color: var(--ui-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.clusterToggle:hover { background: var(--ui-hover); }
+
+.clusterChevron {
+  color: var(--ui-text-tertiary);
+  transition: transform var(--ui-motion-fast) var(--ui-ease);
+}
+
+.clusterToggle[aria-expanded='true'] .clusterChevron { transform: rotate(90deg); }
+
+.clusterDot { display: flex; align-items: center; justify-content: center; }
+
+.clusterTitle {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.clusterMeta {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--ui-text-tertiary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.clusterCount {
+  flex: none;
+  font-size: 11px;
+  color: var(--ui-text-tertiary);
+  font-variant-numeric: var(--ui-num);
+}
+
+.clusterBody { padding-bottom: 2px; }
+
+/* ── Model stage summary (归类) ─────────────────────────────────────────── */
+
+.modelSummary {
+  margin: 2px 0;
+}
+
+.modelSummaryToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 24px;
+  padding: 0 14px 0 30px;
+  border: 0;
+  background: transparent;
+  color: var(--ui-text-secondary);
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.modelSummaryToggle:hover { background: var(--ui-hover); }
+
+.modelSummaryChevron {
+  flex: none;
+  color: var(--ui-text-tertiary);
+  transition: transform var(--ui-motion-fast) var(--ui-ease);
+}
+
+.modelSummaryToggle[aria-expanded='true'] .modelSummaryChevron { transform: rotate(90deg); }
+
+.modelSummaryMeta {
+  min-width: 0;
+  overflow: hidden;
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--ui-text-tertiary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.modelSummaryList { padding: 2px 14px 4px 42px; }
+
+.modelSummaryStep {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 0;
+}
+
+.modelSummaryStepLabel {
+  font-size: 11px;
+  color: var(--ui-text-tertiary);
+}
+
+/* ── Record rows ────────────────────────────────────────────────────────── */
+
+.itemRow {
+  display: grid;
+  grid-template-columns: 20px 12px minmax(0, 1fr) auto 14px;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 26px;
+  padding: 0 14px 0 28px;
+  border: 0;
+  background: transparent;
+  color: var(--ui-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.itemRow:hover { background: var(--ui-hover); }
+
+.itemRow[data-selected] {
+  background: var(--ui-accent-fill);
+  box-shadow: inset 2px 0 0 var(--ui-accent-line);
+}
+
+.itemRow[data-indent] { padding-left: 40px; }
+
+.itemIndex {
+  font-size: 11px;
+  color: var(--ui-text-dimmed);
+  font-variant-numeric: var(--ui-num);
+  text-align: right;
+}
+
+.itemDot { display: flex; align-items: center; justify-content: center; }
+
+.itemCopy {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.itemTitle {
+  flex: 0 1 auto;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ui-text);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.itemMeta {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--ui-text-tertiary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.itemDuration {
+  flex: none;
+  font-size: 11px;
+  color: var(--ui-text-tertiary);
+  font-variant-numeric: var(--ui-num);
+  white-space: nowrap;
+}
+
+.itemChevron {
+  flex: none;
+  color: var(--ui-text-tertiary);
+  opacity: 0;
+  transition: opacity var(--ui-motion-fast) var(--ui-ease);
+}
+
+.itemRow:hover .itemChevron,
+.itemRow:focus-visible .itemChevron { opacity: 1; }
+
+/* ── Path viewport ──────────────────────────────────────────────────────── */
+
+.railViewport {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.turns {
+  display: flex;
+  flex-direction: column;
+  padding: 2px 0 8px;
+}
+
+.moreRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 14px 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed var(--ui-line);
+}
+
+.moreButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ui-text-tertiary);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.moreButton:hover:not(:disabled) { color: var(--ui-text); }
+.moreButton:disabled { cursor: default; }
+
+.moreChevron { transform: rotate(-90deg); }
+
+.moreStatus {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--ui-state-warn);
+}
+
+/* Rows animate in only when they are new: the list is keyed by record id, so
+ * live appends read as growth while settled rows stay still. */
+@keyframes watcher-row-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: none; }
+}
+
+.itemRow[data-ud-motion='watcher-live-append'] {
+  animation: watcher-row-in var(--ui-motion-fast) var(--ui-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .itemRow[data-ud-motion='watcher-live-append'] { animation: none; }
+  .turnChevron,
+  .phaseChevron,
+  .stepChevron,
+  .clusterChevron,
+  .modelSummaryChevron,
+  .itemChevron,
+  .moreChevron { transition: none; }
+}

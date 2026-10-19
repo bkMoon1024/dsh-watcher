@@ -25,8 +25,8 @@ import {
 
 export type Evidence = { turn: number; steps: number[]; seqs: number[] }
 
-export function SessionInsights({ value, now, running, waiting, onEvidence, tokensPerSecond }: {
-  value: InsightsView | undefined; now: number; running: boolean; waiting: boolean; onEvidence: (e: Evidence) => void; tokensPerSecond?: number | null
+export function SessionInsights({ value, now, running, waiting, onEvidence, tokensPerSecond, flat = false, onClose }: {
+  value: InsightsView | undefined; now: number; running: boolean; waiting: boolean; onEvidence: (e: Evidence) => void; tokensPerSecond?: number | null; flat?: boolean; onClose?: () => void
 }) {
   const limits = useLimits()
   const pricing = usePricingTable()
@@ -34,9 +34,12 @@ export function SessionInsights({ value, now, running, waiting, onEvidence, toke
   const copy = costCopy(locale)
   const [scope, setScope] = useState<'turn' | 'session'>('turn')
   const [modelFilter, setModelFilter] = useState<'all' | string>('all')
-  const [collapsed, setCollapsed] = useState(() => {
+  const [storedCollapsed, setCollapsed] = useState(() => {
     try { return globalThis.localStorage?.getItem('dsh-watcher:hud-collapsed') === '1' } catch { return false }
   })
+  // A popover is always expanded: the collapsed state belongs to the inline
+  // readout, and a stale stored value must not collapse an overlay.
+  const collapsed = flat ? false : storedCollapsed
   const toggleCollapsed = () => {
     const next = !collapsed
     try { globalThis.localStorage?.setItem('dsh-watcher:hud-collapsed', next ? '1' : '0') } catch {}
@@ -67,8 +70,10 @@ export function SessionInsights({ value, now, running, waiting, onEvidence, toke
   const costNote = formatEstimateNote(estimate, locale)
   const costTitle = costNote ? `${copy.estimatedCost}: ${costText} · ${costNote}` : `${copy.estimatedCost}: ${costText}`
 
+  const boxClass = flat ? `${css.hudBox} ${css.hudBoxFlat}` : css.hudBox
+
   return (
-    <section className={`${tokensCss.tokens} ${tokensCss.series} ${css.hudBox}`} aria-label="耗时分布与运行健康度" data-collapsed={collapsed ? '' : undefined}>
+    <section className={`${tokensCss.tokens} ${tokensCss.series} ${boxClass}`} aria-label="耗时分布与运行健康度" data-collapsed={collapsed ? '' : undefined} data-flat={flat ? '' : undefined}>
       <div className={css.hudTop}>
         <div className={css.hudHeadRow}>
           <div className={css.hudTopLeft}>
@@ -96,16 +101,33 @@ export function SessionInsights({ value, now, running, waiting, onEvidence, toke
                 { value: 'session', label: '全会话' },
               ]}
             />
-            <button
-              type="button"
-              className={css.collapseBtn}
-              aria-expanded={!collapsed}
-              aria-label={collapsed ? '展开耗时统计' : '收起耗时统计'}
-              title={collapsed ? '展开耗时统计' : '收起耗时统计'}
-              onClick={toggleCollapsed}
-            >
-              <span className={css.collapseChevron} aria-hidden="true">▾</span>
-            </button>
+            {flat
+              ? null
+              : (
+                <button
+                  type="button"
+                  className={css.collapseBtn}
+                  aria-expanded={!collapsed}
+                  aria-label={collapsed ? '展开耗时统计' : '收起耗时统计'}
+                  title={collapsed ? '展开耗时统计' : '收起耗时统计'}
+                  onClick={toggleCollapsed}
+                >
+                  <span className={css.collapseChevron} aria-hidden="true">▾</span>
+                </button>
+              )}
+            {onClose === undefined
+              ? null
+              : (
+                <button
+                  type="button"
+                  className={css.popoverClose}
+                  aria-label="关闭用量统计"
+                  title="关闭"
+                  onClick={onClose}
+                >
+                  <span aria-hidden="true">×</span>
+                </button>
+              )}
           </div>
         </div>
         <div className={css.hudStatRow}>

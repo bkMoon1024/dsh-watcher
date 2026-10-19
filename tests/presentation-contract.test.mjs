@@ -6,6 +6,7 @@ import test from 'node:test'
 const clientDir = new URL('../src/client/', import.meta.url)
 const watcherSource = new URL('../src/client/Watcher.tsx', import.meta.url)
 const clientStyles = new URL('../src/client/Watcher.module.css', import.meta.url)
+const panelStylesSource = new URL('../src/client/panel/panel.module.css', import.meta.url)
 const settingsStyles = new URL('../src/client/Insights.module.css', import.meta.url)
 
 /**
@@ -62,15 +63,19 @@ test('the Markdown reader is supplied through the declared RC1 client injection'
   assert.equal(pkg.devDependencies['@deepseek-ai/cordis'], '4.0.4')
   for (const icon of [
     'IconChevronRightOutlineRegular',
-    'IconRefreshOutlineRegular',
+    'IconChevronLeftOutlineRegular',
     'IconCheckOutlineRegular',
     'IconCopyOutlineRegular',
+    'IconGaugeOutlineRegular',
+    'IconEllipsisOutlineRegular',
+    'IconSearchOutlineRegular',
   ]) {
     assert.match(source, new RegExp(`\\b${icon}\\b`))
     assert.match(bundle, new RegExp(`\\b${icon}\\b`))
   }
   for (const retired of [
     'IconChevronRightOutline14',
+    'IconRefreshOutlineRegular',
     'IconRefreshOutline14',
     'IconCheckOutline16',
     'IconCopyOutline16',
@@ -85,83 +90,107 @@ test('the Markdown reader is supplied through the declared RC1 client injection'
 })
 
 test('the overview keeps every Step and occurrence reachable through folding and reversible grouping', async () => {
-  const [source, styles] = await Promise.all([
+  const [source, panelStyles, watcherStyles] = await Promise.all([
     clientSource,
+    readFile(panelStylesSource, 'utf8'),
     readFile(clientStyles, 'utf8'),
   ])
 
+  // Turns stay full-width headers; the phase header is the reversible grouping
+  // control, and every record below it is a real button.
   assert.match(source, /className=\{css\.turnToggle\}/)
   assert.match(source, /aria-expanded=\{turnOpen\}/)
-  // The two view switches are the shared segmented toggle: a labelled group of
-  // toggle buttons, not tabs, because neither owns a panel element.
+  assert.match(source, /className=\{css\.phaseToggle\}/)
+  assert.match(source, /aria-expanded=\{effectiveOpen\}/)
+  assert.match(source, /data-overview-state=\{state\}/)
+  assert.match(source, /className=\{css\.phaseMarker\}/)
+  assert.match(source, /className=\{css\.itemRow\}/)
+  assert.match(source, /className=\{css\.itemIndex\}/)
+  assert.match(source, /className=\{css\.itemDuration\}/)
+
+  // The two view switches are the shared segmented toggle, moved out of the
+  // permanent toolbar and into the view menu: labelled toggle buttons, not tabs.
   assert.match(source, /<SegmentedToggle/)
   assert.match(source, /label="路径组织方式"/)
   assert.match(source, /label="路径展开深度"/)
   assert.match(source, /label: '概览'/)
   assert.match(source, /label: '详情'/)
-  assert.match(source, /layerDisclosureOpen\(disclosure, 'phase', group\.id\)/)
-  assert.match(source, /className=\{css\.phaseMarker\}/)
-  assert.match(source, /className=\{css\.phaseToggle\}/)
-  assert.match(source, /data-overview-state=\{phaseState\}/)
-  assert.match(source, /className=\{css\.overviewStep\}/)
-  assert.match(source, /className=\{css\.stepToggle\}/)
-  // Steps render a merged timeline (occurrences interleaved with the model
-  // stage) and the path filter narrows it before mapping.
-  assert.match(source, /stepTimelineEntries\(step\)/)
-  assert.match(source, /shownEntries\.map\(entry =>/)
-  assert.match(source, /className=\{css\.overviewOccurrence\}/)
-  // Grouping is still reversible: the same cluster helper runs over the group's
-  // work items, narrowed by the path filter when one is active.
-  assert.match(source, /group\.items\.filter\(item => item\.source !== 'model'\)/)
-  assert.match(source, /clusterWorkItems\(/)
-  assert.match(source, /visibleItemIds\.has\(item\.id\)/)
-  assert.match(source, /className=\{css\.analysisClusterToggle\}/)
-  assert.match(source, /onSelectItem=\{item => selectItem\(group, item\)\}/)
   assert.match(source, /label: '逐项'/)
   assert.match(source, /label: '归类'/)
+
+  // Steps render a merged timeline (occurrences interleaved with the model
+  // stage); a single-record Step flattens into one row instead of a header.
+  assert.match(clientCode, /stepTimelineEntries\(step\)/)
+  assert.match(source, /entry\.kind === 'model'/)
+  assert.match(source, /className=\{css\.stepToggle\}/)
+  assert.match(source, /layerDisclosureOpen\(disclosure, 'step', step\.id\)/)
+
+  // Grouping is still reversible: the same cluster helper runs over the group's
+  // work items, narrowed by the path filter when one is active.
+  assert.match(source, /clusterWorkItems\(/)
+  assert.match(clientCode, /visibleItemIds\.has\(entry\.item\.id\)/)
+  assert.match(source, /className=\{css\.clusterToggle\}/)
+  assert.match(source, /layerDisclosureOpen\(disclosure, 'cluster', cluster\.id\)/)
+  assert.match(source, /onSelectItem\(item\)/)
   assert.match(source, /aria-label="返回工作路径"/)
   assert.match(source, /picture\.stepCount/)
   assert.doesNotMatch(source, /<StatusMark status=\{turn\.status\}/)
   assert.doesNotMatch(source, /className=\{css\.groupDot\}/)
   assert.doesNotMatch(source, /<span>现在<\/span>/)
+  assert.doesNotMatch(source, /phaseDurBar/)
 
-  assert.match(styles, /\.phaseMarker\[data-state='settled'\]|\.phaseMarker\s*\{/)
-  assert.match(styles, /\.phaseMarker\[data-state='partial'\]/)
-  assert.match(styles, /\.overviewOccurrenceTitle\s*\{[^}]*font-size:\s*14px/s)
-  assert.match(styles, /\.phaseToggle\[aria-expanded='true'\] \.phaseChevron/)
-  assert.match(styles, /\.viewControl\s*\{/)
-  assert.match(styles, /\.stepToggle\[aria-expanded='true'\] \.stepChevron/)
-  assert.match(styles, /\.analysisClusterToggle\[aria-expanded='true'\] \.analysisClusterChevron/)
-  assert.match(styles, /@keyframes watcher-live-append/)
-  assert.match(styles, /\.menu:not\(:has\(\.inspector\)\)/)
-  assert.match(styles, /\.menu:has\(\.inspector\) \.workPicture\s*\{\s*display:\s*none;/)
-  assert.doesNotMatch(styles, /max-height:\s*48vh/)
-  assert.doesNotMatch(styles, /\.groupDot|\.nowTag/)
+  // Marker colours, open chevrons and the live-append motion are the only
+  // decoration left on the path.
+  assert.match(panelStyles, /\.phaseMarker\[data-state='active'\]/)
+  assert.match(panelStyles, /\.phaseMarker\[data-state='failure'\]/)
+  assert.match(panelStyles, /\.turnToggle\[aria-expanded='true'\] \.turnChevron/)
+  assert.match(panelStyles, /\.phaseToggle\[aria-expanded='true'\] \.phaseChevron/)
+  assert.match(panelStyles, /\.stepToggle\[aria-expanded='true'\] \.stepChevron/)
+  assert.match(panelStyles, /\.itemRow\[data-ud-motion='watcher-live-append'\]/)
+  assert.match(panelStyles, /@keyframes watcher-row-in/)
+  assert.match(panelStyles, /\.itemTitle\s*\{[^}]*font-size:\s*13px/s)
+  assert.match(watcherStyles, /@keyframes watcher-panel-enter/)
+  assert.match(watcherStyles, /\.menu:not\(:has\(\.inspector\)\)/)
+  assert.match(watcherStyles, /\.menu:has\(\.inspector\) \.workPicture\s*\{\s*display:\s*none;/)
+  assert.doesNotMatch(watcherStyles, /max-height:\s*48vh/)
+  assert.doesNotMatch(watcherStyles, /\.groupDot|\.nowTag|\.commandBar/)
 })
 
-test('the panel is one column: status, filters and ledger share it without tabs', async () => {
-  const [source, styles] = await Promise.all([
+test('the panel stays one quiet column: status, scale line, then the path', async () => {
+  const [source, panelStyles, watcherStyles] = await Promise.all([
     clientSource,
+    readFile(panelStylesSource, 'utf8'),
     readFile(clientStyles, 'utf8'),
   ])
 
-  // The work path and the session ledger used to be sibling tabs competing for
-  // the body. They now share one column, so the panel has no tablist and no
-  // aria-controls to dangle: status, filters, ledger, then the rail.
-  assert.doesNotMatch(source, /panelTab/)
-  assert.match(source, /className=\{css\.commandBar\}/)
-  assert.match(source, /data-kind="turns"/)
-  assert.match(source, /className=\{css\.pathToolbar\}/)
-  assert.match(source, /<SessionInsights[\s\S]*?className=\{css\.railViewport\}/)
-  // Exactly one HUD: the merged panel briefly rendered it above and below the
-  // toolbar at the same time.
-  assert.equal((source.match(/<SessionInsights/g) ?? []).length, 1)
-  assert.ok(source.indexOf('className={css.pathToolbar}') < source.indexOf('<SessionInsights'))
+  // The old command bar, path toolbar and whole HUD are gone. The panel has a
+  // single status row with three tool buttons; search, usage and view/history
+  // open as overlays instead of permanent controls.
+  assert.doesNotMatch(source, /commandBar|pathToolbar/)
+  assert.match(source, /<PanelHeader/)
+  assert.match(source, /<MetricsStrip/)
+  assert.match(source, /<PathTimeline/)
+  assert.match(source, /<SearchRow/)
+  assert.match(source, /<ViewMenu/)
+  assert.match(source, /<StatsPopover/)
+  assert.match(source, /data-watcher-tool="search"/)
+  assert.match(source, /data-watcher-tool="stats"/)
+  assert.match(source, /data-watcher-tool="menu"/)
+  assert.match(source, /data-watcher-overlay="search"/)
+  assert.match(source, /data-watcher-overlay="stats"/)
+  assert.match(source, /data-watcher-overlay="menu"/)
 
-  // The header keeps a single decorative edge, and the counters carry the
-  // category hues instead of one flat tertiary color.
-  assert.match(styles, /\.commandBar::before\s*\{/)
-  assert.match(styles, /\.controlCounts \[data-kind='turns'\]\s*\{\s*color:\s*var\(--ui-chart-1\);/)
+  // Exactly one usage surface, and it lives inside the stats popover.
+  assert.equal((source.match(/<SessionInsights/g) ?? []).length, 1)
+  assert.match(source, /<SessionInsights[\s\S]{0,400}?flat/)
+  assert.match(source, /id="watcher-stats-popover"/)
+
+  // The status bar owns the only hairline; the scale line stays borderless so
+  // it does not read as a second toolbar.
+  assert.match(panelStyles, /\.statusBar \{[^}]*border-bottom/s)
+  assert.match(panelStyles, /\.metrics \{[^}]*display: flex/s)
+  assert.doesNotMatch(panelStyles, /\.metrics \{[^}]*border-bottom/s)
+  assert.match(watcherStyles, /\.menu \{[\s\S]*?z-index: 1100;/)
 })
 
 test('each settings section keeps a mounted tabpanel too', async () => {
@@ -180,23 +209,31 @@ test('each settings section keeps a mounted tabpanel too', async () => {
 })
 
 test('partial history stays explicitly loadable without blocking Host summary', async () => {
-  const [source, styles] = await Promise.all([
+  const [source, panelStyles, watcherStyles] = await Promise.all([
     clientSource,
+    readFile(panelStylesSource, 'utf8'),
     readFile(clientStyles, 'utf8'),
   ])
 
   assert.match(source, /正在补齐历史/)
+  assert.match(source, /载入更早的记录/)
+  assert.match(source, /载入全部历史/)
   assert.match(source, /snapshot\.hasMore/)
-  assert.match(source, /onClick=\{startHistoryLoad\}/)
   assert.match(source, /void loadAllHistory\(controller\.signal\)/)
+  assert.match(source, /onLoadAll/)
+  assert.match(source, /historyKind === 'loading'/)
   assert.doesNotMatch(source, /载入全部轮次/)
-  assert.match(styles, /\.loadAllInlineBtn\s*\{/)
-  assert.doesNotMatch(styles, /\.historyNotice\s*\{/)
+  assert.match(panelStyles, /\.moreRow\s*\{/)
+  assert.match(panelStyles, /\.moreButton\s*\{/)
+  assert.match(panelStyles, /\.menuItem\s*\{/)
+  assert.doesNotMatch(watcherStyles, /\.loadAllInlineBtn\s*\{/)
+  assert.doesNotMatch(watcherStyles, /\.historyNotice\s*\{/)
 })
 
 test('wall-clock evidence is visible at every useful level without heuristic speed', async () => {
-  const [source, styles, performance, overview] = await Promise.all([
+  const [source, panelStyles, watcherStyles, performance, overview] = await Promise.all([
     clientSource,
+    readFile(panelStylesSource, 'utf8'),
     readFile(clientStyles, 'utf8'),
     readFile(performanceSource, 'utf8'),
     readFile(overviewSource, 'utf8'),
@@ -216,13 +253,14 @@ test('wall-clock evidence is visible at every useful level without heuristic spe
   assert.doesNotMatch(source, /需要处理/)
   assert.doesNotMatch(overview, /需要处理/)
   assert.match(overview, /有失败记录/)
-  assert.doesNotMatch(styles, /\.turnMetrics\s*\{/)
-  assert.match(styles, /\.turnPerformance\s*\{/)
-  // Step and occurrence durations moved out of the inspector's duplicated
-  // execution list and into the path itself: the step header carries the total
-  // and each occurrence row carries its own elapsed time.
-  assert.match(styles, /\.overviewStepSignals\s*\{/)
-  assert.match(styles, /\.overviewOccurrenceDuration\s*\{/)
+
+  // Durations live on the path itself: the turn header carries its total, each
+  // phase its span, and each record row its own elapsed time.
+  assert.match(panelStyles, /\.turnPerf\s*\{/)
+  assert.match(panelStyles, /\.turnSpeed\s*\{/)
+  assert.match(panelStyles, /\.stepSignals\s*\{/)
+  assert.match(panelStyles, /\.itemDuration\s*\{/)
+  assert.doesNotMatch(watcherStyles, /\.turnMetrics\s*\{/)
   assert.match(performance, /firstTokenTime/)
   assert.match(performance, /outputTokens \/ \(fold\.decodeMs \/ 1000\)/)
 })

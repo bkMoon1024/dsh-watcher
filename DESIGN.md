@@ -135,6 +135,7 @@ Host primitives are used wherever the host already ships one: `Button`, `Input`,
 - One collapsible chapter per Turn; it must never merge across Turn boundaries. Turn headers carry duration and useful totals, not a duplicated status dot.
 - One independently collapsible divider per consecutive user-facing phase; the closed header preserves exact Step/execution totals and elapsed time.
 - Every Step is independently collapsible beneath its phase. Its closed header preserves Step number, elapsed time, parallel count, and execution count.
+- A Step that owns exactly one record and no model stage flattens into that record row; its step number moves into the row's meta line, so a header never costs a whole row of panel height. Every Step with more than one record (or a model stage) keeps its own collapsible header.
 - Every Step may contain one independently collapsible `模型阶段`. Its closed row preserves total model time and visible-reasoning time; opening it reveals a proportional time rail and provider-exposed reasoning attempts without turning reasoning into a peer Step.
 - Historical model stages default closed. The latest actively streaming model stage defaults open. Provider-exposed reasoning text is a second disclosure below its timing row; explicitly opening it pins its parent model stage open across streaming settlement, and the record never disappears merely because a later tool call arrived.
 - In `逐项`, every tool/message occurrence keeps a stable numbered row. In `归类`, every occurrence remains available under one evidence-backed cluster and keeps the same stable selection identity.
@@ -239,7 +240,7 @@ The model/tool figures are diagnostic recorded sums, not slices of a pie: parall
 - Primary task: scan every Step, its model-time decomposition, and every occurrence in the causal work rail while it grows.
 - Secondary task: fold Turn/phase/Step/model levels or switch to same-kind analysis without losing source identity.
 - Tertiary task: select one occurrence, inspect it, then copy or expand complete raw evidence.
-- Navigation model: header trigger → path toolbar (search, status, organize, depth, history) → session HUD → Turn → phase → Step → model stage / reasoning attempt or execution → inspector (record stepper) → structured/raw evidence. The settings section is a separate surface with its own four tabs.
+- Navigation model: header trigger → status bar → (search row / usage popover / view menu) → Turn → phase → Step → model stage / reasoning attempt or execution → inspector (record stepper) → structured/raw evidence. The settings section is a separate surface with its own four tabs.
 - Required states: empty, opening, following, pinned/unread, expanded/collapsed, itemized/grouped, model-waiting, reasoning-streaming, reasoning-settled, reasoning-content-without-timing, reasoning-unavailable, running, parallel, returned-neutral, success, failure, waiting-user, interrupted, partial-history, and reduced-motion.
 
 ## Taste Signature
