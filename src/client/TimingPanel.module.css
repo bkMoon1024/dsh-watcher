@@ -296,3 +296,25 @@
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* The usage popover is narrower than the old inline readout: stack the header
+   instead of letting the bottleneck text collide with the title. */
+.panelBox.compact .topRow {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  row-gap: 4px;
+}
+
+.panelBox.compact .titleArea {
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  white-space: normal;
+  row-gap: 4px;
+}
+
+.panelBox.compact .bottleneckText {
+  flex: 1 1 100%;
+  white-space: normal;
+  font-weight: 500;
+  color: var(--ui-text-secondary);
+}

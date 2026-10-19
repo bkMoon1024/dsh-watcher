@@ -18,10 +18,12 @@ export function TimingPanel({
   stats,
   scope,
   tokensPerSecond,
+  compact = false,
 }: {
   stats: InsightsView['totals']
   scope: 'turn' | 'session'
   tokensPerSecond?: number | null
+  compact?: boolean
 }) {
   const [hoverSlice, setHoverSlice] = useState<SliceKind | null>(null)
   const [popoverLeft, setPopoverLeft] = useState<number>(0)
@@ -115,7 +117,7 @@ export function TimingPanel({
   }
 
   return (
-    <div className={`${tokensCss.tokens} ${tokensCss.series} ${css.panelBox}`}>
+    <div className={`${tokensCss.tokens} ${tokensCss.series} ${css.panelBox}${compact ? ' ' + css.compact : ''}`}>
       {/* 顶行：标题 + 实时推流速度 + 轮次总耗时 */}
       <div className={css.topRow}>
         <div className={css.titleArea}>

@@ -168,7 +168,7 @@ export function SessionInsights({ value, now, running, waiting, onEvidence, toke
       ) : null}
       {collapsed ? null : (
       <div className={css.hudBody}>
-        <TimingPanel stats={stats} scope={scope} tokensPerSecond={scope === 'turn' ? tokensPerSecond : undefined} />
+        <TimingPanel stats={stats} scope={scope} tokensPerSecond={scope === 'turn' ? tokensPerSecond : undefined} compact={flat} />
         {alerts.length > 0 ? (
           <div className={css.alertSection} aria-live="polite">
             {alerts.map((a: Evidence & { id: string; title: string; detail: string; kind?: string }) => {

@@ -184,7 +184,7 @@
   position: absolute;
   right: 10px;
   z-index: 30;
-  background: var(--ui-surface);
+  background: rgb(from var(--ui-surface) r g b / 1);
   border: 1px solid var(--ui-line);
   border-radius: 10px;
   box-shadow: 0 14px 34px rgba(20, 24, 35, .14);
@@ -270,7 +270,7 @@
   position: sticky;
   top: 0;
   z-index: 3;
-  background: var(--ui-surface);
+  background: rgb(from var(--ui-surface) r g b / 1);
 }
 
 .turnHeading {

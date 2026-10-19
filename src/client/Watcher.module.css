@@ -187,7 +187,7 @@
   padding: 4px 14px;
   border: 1px solid var(--ui-ghost-active-line);
   border-radius: 999px;
-  background: var(--ui-surface);
+  background: rgb(from var(--ui-surface) r g b / 1);
   box-shadow: var(--ui-elevation-prominent);
   color: var(--ui-text);
   font: inherit;

@@ -7,6 +7,7 @@ const clientDir = new URL('../src/client/', import.meta.url)
 const watcherSource = new URL('../src/client/Watcher.tsx', import.meta.url)
 const clientStyles = new URL('../src/client/Watcher.module.css', import.meta.url)
 const panelStylesSource = new URL('../src/client/panel/panel.module.css', import.meta.url)
+const timingStylesSource = new URL('../src/client/TimingPanel.module.css', import.meta.url)
 const settingsStyles = new URL('../src/client/Insights.module.css', import.meta.url)
 
 /**
@@ -157,9 +158,10 @@ test('the overview keeps every Step and occurrence reachable through folding and
 })
 
 test('the panel stays one quiet column: status, scale line, then the path', async () => {
-  const [source, panelStyles, watcherStyles] = await Promise.all([
+  const [source, panelStyles, timingStyles, watcherStyles] = await Promise.all([
     clientSource,
     readFile(panelStylesSource, 'utf8'),
+    readFile(timingStylesSource, 'utf8'),
     readFile(clientStyles, 'utf8'),
   ])
 
@@ -201,6 +203,17 @@ test('the panel stays one quiet column: status, scale line, then the path', asyn
     assert.ok(block, selector)
     assert.match(block[1], /display: flex/)
   }
+
+  // The turn header is sticky over the scrolling path, and the host menu token
+  // it inherits is translucent. Without an opaque copy the scrolled-under rows
+  // show through the stuck header, so the header and the popovers force alpha 1.
+  assert.match(panelStyles, /\.turnHeader \{[^}]*background: rgb\(from var\(--ui-surface\) r g b \/ 1\)/s)
+  assert.match(panelStyles, /\.popover \{[^}]*background: rgb\(from var\(--ui-surface\) r g b \/ 1\)/s)
+
+  // The usage popover is narrower than the old inline readout: its timing
+  // header stacks instead of colliding with the bottleneck sentence.
+  assert.match(source, /compact=\{flat\}/)
+  assert.match(timingStyles, /\.panelBox\.compact \.topRow \{[^}]*flex-wrap: wrap/s)
 })
 
 test('each settings section keeps a mounted tabpanel too', async () => {
