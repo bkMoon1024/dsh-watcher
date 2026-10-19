@@ -57,11 +57,11 @@ export function ActivityHeatmap({ analytics }: { analytics: InsightsAnalytics })
                 <div className={css.chartTooltipTotal}>
                   {hoveredHeatmapDay.tokens > 0 ? (
                     <>
-                      {fmtCompact(hoveredHeatmapDay.tokens)} <span style={{ fontSize: '11px', fontWeight: 500 }}>Token</span>
+                      {fmtCompact(hoveredHeatmapDay.tokens)} <span className={css.chartTooltipUnit}>Token</span>
                       <span className={css.chartTooltipSessions}>· {hoveredHeatmapDay.sessions} 个会话</span>
                     </>
                   ) : (
-                    <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--ui-text-tertiary)' }}>当日未产生模型调用</span>
+                    <span className={css.chartTooltipEmpty}>当日未产生模型调用</span>
                   )}
                 </div>
                 {hoveredHeatmapDay.models.length > 0 && <div className={css.chartTooltipDivider} />}

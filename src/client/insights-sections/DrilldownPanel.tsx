@@ -46,7 +46,7 @@ export function DrilldownPanel({ analytics, activeDrilldown, setActiveDrilldown 
                 const minMs = analytics.speedList[0].firstMs / analytics.speedList[0].firstSamples
                 // 最快的模型得分为 100%，后续依次递减，条长完美单调递减
                 const score = Math.max(10, Math.min(100, Math.round((minMs / avgMs) * 100)))
-                const color = avgMs < 1000 ? 'var(--ui-state-success)' : avgMs < 3000 ? 'var(--ui-accent)' : 'var(--ui-state-warn)'
+                const tone = avgMs < 1000 ? 'good' : avgMs < 3000 ? 'fair' : 'warn'
                 return (
                   <div key={m.model} className={css.rankItem}>
                     <div className={css.rankItemTop}>
@@ -54,12 +54,12 @@ export function DrilldownPanel({ analytics, activeDrilldown, setActiveDrilldown 
                         <span className={`${css.rankBadge} ${idx === 0 ? css.rankBadgeGold : ''}`}>#{idx + 1}</span>
                         <span className={css.rankName} title={m.model}>{m.model}</span>
                       </div>
-                      <span className={css.rankValMain} style={{ color }}>
+                      <span className={css.rankValMain} data-tone={tone}>
                         {(avgMs / 1000).toFixed(2)} 秒
                       </span>
                     </div>
                     <div className={css.rankTrack}>
-                      <div className={css.rankBar} style={{ width: `${score}%`, background: color }} />
+                      <div className={css.rankBar} data-tone={tone} style={{ width: `${score}%` }} />
                     </div>
                     <div className={css.rankSubText}>
                       <span>速度敏捷得分 <strong>{score}分</strong> (首字均值 {(avgMs / 1000).toFixed(2)}s)</span>
@@ -81,7 +81,7 @@ export function DrilldownPanel({ analytics, activeDrilldown, setActiveDrilldown 
                 const maxMs = analytics.latencyList[0].firstMs / analytics.latencyList[0].firstSamples
                 // 最慢的模型瓶颈权重 100%，后续依次递减，条长完美单调递减
                 const bottleneckPct = Math.max(10, Math.min(100, Math.round((avgMs / maxMs) * 100)))
-                const color = avgMs > 5000 ? 'var(--ui-state-error)' : avgMs > 2000 ? 'var(--ui-state-warn)' : 'var(--ui-accent)'
+                const tone = avgMs > 5000 ? 'bad' : avgMs > 2000 ? 'warn' : 'fair'
                 return (
                   <div key={m.model} className={css.rankItem}>
                     <div className={css.rankItemTop}>
@@ -89,12 +89,12 @@ export function DrilldownPanel({ analytics, activeDrilldown, setActiveDrilldown 
                         <span className={`${css.rankBadge} ${idx === 0 ? css.rankBadgeGold : ''}`}>#{idx + 1}</span>
                         <span className={css.rankName} title={m.model}>{m.model}</span>
                       </div>
-                      <span className={css.rankValMain} style={{ color }}>
+                      <span className={css.rankValMain} data-tone={tone}>
                         {(avgMs / 1000).toFixed(2)} 秒
                       </span>
                     </div>
                     <div className={css.rankTrack}>
-                      <div className={css.rankBar} style={{ width: `${bottleneckPct}%`, background: color }} />
+                      <div className={css.rankBar} data-tone={tone} style={{ width: `${bottleneckPct}%` }} />
                     </div>
                     <div className={css.rankSubText}>
                       <span>排队延迟 <strong>{(avgMs / 1000).toFixed(2)}s</strong> (瓶颈权重 {bottleneckPct}%)</span>
@@ -122,11 +122,11 @@ export function DrilldownPanel({ analytics, activeDrilldown, setActiveDrilldown 
                         <span className={`${css.rankBadge} ${idx === 0 ? css.rankBadgeGold : ''}`}>#{idx + 1}</span>
                         <span className={css.rankName} title={m.model}>{m.model}</span>
                       </div>
-                      <span className={css.rankValMain} style={{ color: 'var(--ui-series-think)' }}>
+                      <span className={css.rankValMain} data-tone="think">
                         思考占比 {thinkPct}%
                       </span>
                     </div>
-                    <div className={css.toolCompoundTrack} style={{ height: '8px' }}>
+                    <div className={`${css.toolCompoundTrack} ${css.toolCompoundTrackCompact}`}>
                       <div className={css.barSegThink} style={{ width: `${thinkPct}%` }} title={`思考: ${thinkPct}%`} />
                       <div className={css.barSegBody} style={{ width: `${100 - thinkPct}%` }} title={`正文: ${100 - thinkPct}%`} />
                     </div>
@@ -156,11 +156,11 @@ export function DrilldownPanel({ analytics, activeDrilldown, setActiveDrilldown 
                         <span className={`${css.rankBadge} ${idx === 0 ? css.rankBadgeGold : ''}`}>#{idx + 1}</span>
                         <span className={css.rankName} title={m.model}>{m.model}</span>
                       </div>
-                      <span className={css.rankValMain} style={{ color: 'var(--ui-state-success)' }}>
+                      <span className={css.rankValMain} data-tone="good">
                         命中率 {hitPct}%
                       </span>
                     </div>
-                    <div className={css.toolCompoundTrack} style={{ height: '8px' }}>
+                    <div className={`${css.toolCompoundTrack} ${css.toolCompoundTrackCompact}`}>
                       <div className={css.barSegHit} style={{ width: `${hitPct}%` }} title={`缓存命中: ${hitPct}%`} />
                       <div className={css.barSegMiss} style={{ width: `${100 - hitPct}%` }} title={`未命中: ${100 - hitPct}%`} />
                     </div>
@@ -187,8 +187,8 @@ export function DrilldownPanel({ analytics, activeDrilldown, setActiveDrilldown 
                   <div className={css.toolSliceFile} style={{ width: `${analytics.filePct}%` }} />
                 </div>
                 <div className={css.toolCompoundLegend}>
-                  <span><i className={css.dlDot} style={{ background: 'var(--ui-series-bash)' }} /> 终端命令 (Bash): <strong>{Math.round(analytics.totalBashMs / 1000)}秒 ({analytics.bashPct}%)</strong></span>
-                  <span><i className={css.dlDot} style={{ background: 'var(--ui-series-file)' }} /> 文件与通用读写: <strong>{Math.round(analytics.totalFileMs / 1000)}秒 ({analytics.filePct}%)</strong></span>
+                  <span><i className={`${css.dlDot} ${css.dlDotBash}`} /> 终端命令 (Bash): <strong>{Math.round(analytics.totalBashMs / 1000)}秒 ({analytics.bashPct}%)</strong></span>
+                  <span><i className={`${css.dlDot} ${css.dlDotFile}`} /> 文件与通用读写: <strong>{Math.round(analytics.totalFileMs / 1000)}秒 ({analytics.filePct}%)</strong></span>
                 </div>
               </div>
 
@@ -196,7 +196,7 @@ export function DrilldownPanel({ analytics, activeDrilldown, setActiveDrilldown 
               <div className={css.toolGridCards}>
                 <div className={css.toolMiniCard}>
                   <div className={css.toolMiniTitle}>
-                    <i className={css.dlDot} style={{ background: 'var(--ui-series-bash)' }} />
+                    <i className={`${css.dlDot} ${css.dlDotBash}`} />
                     <span>终端 Bash 命令 (测试/构建/脚本)</span>
                   </div>
                   <div className={css.toolMiniNum}>{Math.round(analytics.totalBashMs / 1000)} 秒</div>
@@ -207,7 +207,7 @@ export function DrilldownPanel({ analytics, activeDrilldown, setActiveDrilldown 
 
                 <div className={css.toolMiniCard}>
                 <div className={css.toolMiniTitle}>
-                  <i className={css.dlDot} style={{ background: 'var(--ui-series-file)' }} />
+                  <i className={`${css.dlDot} ${css.dlDotFile}`} />
                   <span>文件操作与其他工具 (读写/检索)</span>
                 </div>
                   <div className={css.toolMiniNum}>{Math.round(analytics.totalFileMs / 1000)} 秒</div>
@@ -238,7 +238,7 @@ export function DrilldownPanel({ analytics, activeDrilldown, setActiveDrilldown 
                             总计 {Math.round(tMs / 1000)} 秒
                           </span>
                         </div>
-                        <div className={css.toolCompoundTrack} style={{ height: '8px' }}>
+                        <div className={`${css.toolCompoundTrack} ${css.toolCompoundTrackCompact}`}>
                           <div className={css.barSegBash} style={{ width: `${bPct}%` }} title={`终端命令: ${Math.round(bMs/1000)}s`} />
                           <div className={css.barSegFile} style={{ width: `${100 - bPct}%` }} title={`文件读写: ${Math.round(fMs/1000)}s`} />
                         </div>

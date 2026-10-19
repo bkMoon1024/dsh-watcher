@@ -736,6 +736,23 @@
   transition: width 200ms ease;
 }
 
+/* Tone ramps for the speed/latency drilldowns. The threshold lives in the
+ * markup, the hue lives here, so a retheme never touches the component. */
+.rankBar[data-tone='good'],
+.rankValMain[data-tone='good'] { color: var(--ui-state-success); }
+.rankBar[data-tone='fair'],
+.rankValMain[data-tone='fair'] { color: var(--ui-accent); }
+.rankBar[data-tone='warn'],
+.rankValMain[data-tone='warn'] { color: var(--ui-state-warn); }
+.rankBar[data-tone='bad'],
+.rankValMain[data-tone='bad'] { color: var(--ui-state-error); }
+.rankBar[data-tone='think'],
+.rankValMain[data-tone='think'] { color: var(--ui-series-think); }
+
+.rankBar[data-tone] {
+  background: currentColor;
+}
+
 .rankSubText {
   font-size: 10px;
   color: var(--ui-text-tertiary);
@@ -782,6 +799,10 @@
   display: flex;
   overflow: hidden;
   gap: 2px;
+}
+
+.toolCompoundTrackCompact {
+  height: 8px;
 }
 
 .toolSliceBash {
@@ -1063,6 +1084,18 @@
   height: 8px;
   border-radius: 2px;
   flex-shrink: 0;
+}
+
+.dlDotThink {
+  background: var(--ui-series-think);
+}
+
+.dlDotBash {
+  background: var(--ui-series-bash);
+}
+
+.dlDotFile {
+  background: var(--ui-series-file);
 }
 
 .dlName {
@@ -1523,6 +1556,17 @@
 
 .chartTooltipSessions {
   font-size: 10px;
+  font-weight: 500;
+  color: var(--ui-text-tertiary);
+}
+
+.chartTooltipUnit {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.chartTooltipEmpty {
+  font-size: 12px;
   font-weight: 500;
   color: var(--ui-text-tertiary);
 }

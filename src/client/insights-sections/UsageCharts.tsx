@@ -158,7 +158,7 @@ export function UsageCharts({ analytics, range, viewMode, setCustomViewMode }: {
                         </span>
                       </div>
                       <div className={css.chartTooltipTotal}>
-                        {fmtCompact(day.total)} <span style={{ fontSize: '11px', fontWeight: 500 }}>Token</span>
+                        {fmtCompact(day.total)} <span className={css.chartTooltipUnit}>Token</span>
                         <span className={css.chartTooltipSessions}>· {day.sessions} 个会话</span>
                       </div>
                       {day.segments.length > 0 && <div className={css.chartTooltipDivider} />}
@@ -237,7 +237,7 @@ export function UsageCharts({ analytics, range, viewMode, setCustomViewMode }: {
                             </span>
                           </div>
                           <div className={css.chartTooltipTotal}>
-                            {fmtCompact(hoveredPoint.data.total)} <span style={{ fontSize: '11px', fontWeight: 500 }}>Token</span>
+                            {fmtCompact(hoveredPoint.data.total)} <span className={css.chartTooltipUnit}>Token</span>
                             <span className={css.chartTooltipSessions}>· {hoveredPoint.data.sessions} 个会话</span>
                           </div>
                           {hoveredPoint.data.segments.length > 0 && <div className={css.chartTooltipDivider} />}
