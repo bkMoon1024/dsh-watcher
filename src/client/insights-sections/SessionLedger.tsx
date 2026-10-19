@@ -42,9 +42,9 @@ export function SessionLedger({ analytics, sessions, sessionSort, setSessionSort
             <div className={css.sessionTableHeader}>
               <span>排名 · 会话ID</span>
               <span>主用模型</span>
-              <span style={{ textAlign: 'right' }}>Token 消耗</span>
-              <span style={{ textAlign: 'right' }}>总耗时</span>
-              <span style={{ textAlign: 'center' }}>运行状态</span>
+              <span className={css.cellEnd}>Token 消耗</span>
+              <span className={css.cellEnd}>总耗时</span>
+              <span className={css.cellCenter}>运行状态</span>
               <span />
             </div>
             {analytics?.sortedSessions.slice(0, 10).map((row: any, idx: number) => {
@@ -71,8 +71,8 @@ export function SessionLedger({ analytics, sessions, sessionSort, setSessionSort
                       <span>{fmtCompact(val.totals.tokens)}</span>
                       <div className={css.sessionTokenBar} style={{ width: `${tokenBarPct}%` }} />
                     </div>
-                    <span style={{ textAlign: 'right' }}>{Math.round(totalMs / 1000)} 秒</span>
-                    <span style={{ textAlign: 'center' }} className={errCount > 0 ? css.statusBad : retryCount > 0 ? css.statusWarn : css.statusOk}>{status}</span>
+                    <span className={css.cellEnd}>{Math.round(totalMs / 1000)} 秒</span>
+                    <span className={`${css.cellCenter} ${errCount > 0 ? css.statusBad : retryCount > 0 ? css.statusWarn : css.statusOk}`}>{status}</span>
                     <span className={css.arrowIcon}>›</span>
                   </button>
                   {isOpen ? (

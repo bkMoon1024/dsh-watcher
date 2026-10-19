@@ -5,29 +5,8 @@
  *  3. 数字一律 tabular-nums；字号阶梯 10 / 11 / 12 / 13 / 16 / 20。
  *  4. 控件复用宿主 primitives（SegmentedControl / Button / Input），不另造配方。
  *
- * 这里只做一次别名映射，让既有的 --wi-* 引用继续工作；真正的值由挂在根元素上的
- * ui/tokens.module.css 提供。
+ * 变量由挂在根元素上的 ui/tokens.module.css 提供，本文件只消费 --ui-*。
  */
-
-/* ───────────────────────── tokens ───────────────────────── */
-
-.settingsContainer,
-.hudBox {
-  --wi-accent: var(--ui-accent);
-  --wi-accent-tint: var(--ui-accent-fill);
-  --wi-accent-line: var(--ui-accent-line);
-  --wi-ok: var(--ui-state-success);
-  --wi-warn: var(--ui-state-warn);
-  --wi-err: var(--ui-state-error);
-  /* 成对系列（思考 / 文件）沿用耗时条的分色，保证全插件同一套图表色。 */
-  --wi-think: var(--ui-series-think);
-  --wi-file: var(--ui-series-file);
-  --wi-card: var(--ui-surface);
-  --wi-inset: var(--ui-surface-raised);
-  --wi-line: var(--ui-line);
-  --wi-line-strong: var(--ui-line-strong);
-  --wi-num: tabular-nums;
-}
 
 /* ═════════════════════════ 面板内 HUD ═════════════════════════ */
 
@@ -35,9 +14,9 @@
   box-sizing: border-box;
   width: 100%;
   flex: none;
-  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  border-bottom: 1px solid var(--ui-line);
   background: transparent;
-  font-family: var(--dsw-font-family);
+  font-family: var(--ui-font);
 }
 
 /* 顶区：第一行 = 标题与控件，第二行 = 指标条 */
@@ -47,7 +26,7 @@
   gap: 6px;
   padding: 10px 14px 9px;
   background: var(--ui-surface-raised);
-  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  border-bottom: 1px solid var(--ui-line);
 }
 
 .hudHeadRow {
@@ -68,7 +47,7 @@
 .hudHeading {
   font-size: 12px;
   font-weight: 600;
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
   white-space: nowrap;
   line-height: 17px;
 }
@@ -76,7 +55,7 @@
 .hudHeadingNote {
   font-size: 10px;
   font-weight: 400;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
   white-space: nowrap;
   cursor: help;
   overflow: hidden;
@@ -99,7 +78,7 @@
   row-gap: 4px;
   min-width: 0;
   font-size: 11px;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--ui-text-secondary);
 }
 
 .hudStatRow > * {
@@ -108,8 +87,8 @@
   gap: 5px;
   min-width: 0;
   white-space: nowrap;
-  font-variant-numeric: var(--wi-num);
-  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: var(--ui-num);
+  color: var(--ui-text-secondary);
 }
 
 .hudStatRow > * + *::before {
@@ -117,11 +96,11 @@
   width: 1px;
   height: 10px;
   margin: 0 8px;
-  background: var(--dsw-alias-border-l2);
+  background: var(--ui-line);
 }
 
 .hudStatRow strong {
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
   font-weight: 600;
 }
 
@@ -131,7 +110,7 @@
   gap: 5px;
   padding: 1px 7px;
   border-radius: 999px;
-  background: var(--wi-accent-tint);
+  background: var(--ui-accent-fill);
   font-size: 11px;
   min-width: 0;
   max-width: 100%;
@@ -144,13 +123,13 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--wi-accent);
+  background: var(--ui-accent);
   flex-shrink: 0;
 }
 
 .modelTagText {
   font-weight: 600;
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -160,8 +139,8 @@
 .effortTag {
   font-size: 10px;
   font-weight: 600;
-  color: var(--wi-accent);
-  background: color-mix(in srgb, var(--wi-accent) 14%, transparent);
+  color: var(--ui-accent);
+  background: color-mix(in srgb, var(--ui-accent) 14%, transparent);
   padding: 0 5px;
   border-radius: 999px;
   line-height: 14px;
@@ -173,15 +152,15 @@
 .tokenStat,
 .costStat {
   font-size: 11px;
-  color: var(--dsw-alias-label-secondary);
-  font-variant-numeric: var(--wi-num);
+  color: var(--ui-text-secondary);
+  font-variant-numeric: var(--ui-num);
   white-space: nowrap;
 }
 
 .contextTag strong,
 .tokenStat strong,
 .costStat strong {
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
   font-weight: 600;
 }
 
@@ -195,14 +174,14 @@
   border: none;
   border-radius: 5px;
   background: transparent;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--ui-text-secondary);
   cursor: pointer;
   line-height: 1;
 }
 
 .collapseBtn:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
+  background: var(--ui-hover);
+  color: var(--ui-text);
 }
 
 .collapseChevron {
@@ -262,12 +241,12 @@
   padding: 7px 10px;
   border-radius: 8px;
   background: var(--ui-surface-raised);
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-left: 3px solid var(--wi-warn);
+  border: 1px solid var(--ui-line);
+  border-left: 3px solid var(--ui-state-warn);
 }
 
 .alertCardDanger {
-  border-left-color: var(--wi-err);
+  border-left-color: var(--ui-state-error);
 }
 
 .alertLeft {
@@ -288,13 +267,13 @@
 }
 
 .tagWarn {
-  color: var(--wi-warn);
-  background: color-mix(in srgb, var(--wi-warn) 12%, transparent);
+  color: var(--ui-state-warn);
+  background: color-mix(in srgb, var(--ui-state-warn) 12%, transparent);
 }
 
 .tagDanger {
-  color: var(--wi-err);
-  background: color-mix(in srgb, var(--wi-err) 12%, transparent);
+  color: var(--ui-state-error);
+  background: color-mix(in srgb, var(--ui-state-error) 12%, transparent);
 }
 
 .alertTexts {
@@ -307,7 +286,7 @@
 .alertMainText {
   font-size: 12px;
   font-weight: 600;
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -315,7 +294,7 @@
 
 .alertSubText {
   font-size: 11px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -333,7 +312,7 @@
   max-width: 100%;
   min-width: 0;
   padding: 0 0 24px 0;
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
   font-size: 12px;
   box-sizing: border-box;
   overflow-x: hidden;
@@ -358,7 +337,7 @@
   margin: 0;
   font-size: 16px;
   font-weight: 650;
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
   letter-spacing: -0.2px;
   line-height: 22px;
 }
@@ -366,7 +345,7 @@
 .cockpitSubTitle {
   margin: 3px 0 0;
   font-size: 11px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
   line-height: 16px;
 }
 
@@ -406,9 +385,9 @@
   gap: 3px;
   min-width: 0;
   padding: 12px 14px;
-  border: 1px solid var(--wi-line);
+  border: 1px solid var(--ui-line);
   border-radius: 12px;
-  background: var(--wi-card);
+  background: var(--ui-surface);
   box-sizing: border-box;
 }
 
@@ -416,7 +395,7 @@
   font-size: 11px;
   font-weight: 500;
   line-height: 14px;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--ui-text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -428,8 +407,8 @@
   font-weight: 700;
   letter-spacing: -0.3px;
   line-height: 24px;
-  color: var(--dsw-alias-label-primary);
-  font-variant-numeric: var(--wi-num);
+  color: var(--ui-text);
+  font-variant-numeric: var(--ui-num);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -439,7 +418,7 @@
 .heroFootnote {
   font-size: 10px;
   line-height: 13px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -450,12 +429,12 @@
   margin: -6px 0 0;
   font-size: 11px;
   line-height: 16px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
 }
 
 .heroScanNote strong {
-  color: var(--dsw-alias-label-secondary);
-  font-variant-numeric: var(--wi-num);
+  color: var(--ui-text-secondary);
+  font-variant-numeric: var(--ui-num);
 }
 
 /* ── 洞察卡：六宫格 ──
@@ -477,8 +456,8 @@
 
 .roastItem {
   position: relative;
-  background: var(--wi-card);
-  border: 1px solid var(--wi-line);
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-line);
   border-radius: 12px;
   padding: 12px 14px;
   display: flex;
@@ -490,17 +469,17 @@
   transition: border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
   user-select: none;
   box-sizing: border-box;
-  --tone: var(--wi-accent);
+  --tone: var(--ui-accent);
 }
 
-.roastItem[data-tone='ok'] { --tone: var(--wi-ok); }
-.roastItem[data-tone='warn'] { --tone: var(--wi-warn); }
-.roastItem[data-tone='err'] { --tone: var(--wi-err); }
-.roastItem[data-tone='think'] { --tone: var(--wi-think); }
-.roastItem[data-tone='info'] { --tone: var(--wi-accent); }
+.roastItem[data-tone='ok'] { --tone: var(--ui-state-success); }
+.roastItem[data-tone='warn'] { --tone: var(--ui-state-warn); }
+.roastItem[data-tone='err'] { --tone: var(--ui-state-error); }
+.roastItem[data-tone='think'] { --tone: var(--ui-series-think); }
+.roastItem[data-tone='info'] { --tone: var(--ui-accent); }
 
 .roastItem:hover {
-  border-color: var(--wi-line-strong);
+  border-color: var(--ui-line-strong);
   transform: translateY(-1px);
 }
 
@@ -545,7 +524,7 @@
 
 .roastCategoryBadge {
   font-size: 10px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
   flex-shrink: 0;
   letter-spacing: 0.5px;
 }
@@ -553,7 +532,7 @@
 .roastTitle {
   font-size: 13px;
   font-weight: 600;
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -562,7 +541,7 @@
 
 .roastDesc {
   font-size: 11px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
   line-height: 15px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -573,7 +552,7 @@
 .roastVal {
   font-size: 14px;
   font-weight: 700;
-  font-variant-numeric: var(--wi-num);
+  font-variant-numeric: var(--ui-num);
   color: var(--tone);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -586,7 +565,7 @@
   justify-content: space-between;
   align-items: center;
   font-size: 10px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
   line-height: 1;
 }
 
@@ -599,21 +578,21 @@
 
 .roastAction {
   font-weight: 600;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--ui-text-secondary);
   transition: color 120ms;
   flex-shrink: 0;
 }
 
 .roastItem:hover .roastAction,
 .roastItemActive .roastAction {
-  color: var(--wi-accent);
+  color: var(--ui-accent);
 }
 
 /* ── 下钻透视面板 ── */
 
 .drilldownPanel {
-  background: var(--wi-card);
-  border: 1px solid var(--wi-line);
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-line);
   border-radius: 12px;
   padding: 14px 16px;
   display: flex;
@@ -632,7 +611,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--wi-line);
+  border-bottom: 1px solid var(--ui-line);
   padding-bottom: 10px;
   gap: 12px;
   min-width: 0;
@@ -649,7 +628,7 @@
 .drilldownTitle {
   font-size: 13px;
   font-weight: 600;
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -657,7 +636,7 @@
 
 .drilldownSub {
   font-size: 11px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -669,7 +648,7 @@
   padding: 16px;
   text-align: center;
   font-size: 12px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
 }
 
 /* 排行榜条 */
@@ -680,8 +659,8 @@
 }
 
 .rankItem {
-  background: var(--wi-inset);
-  border: 1px solid var(--wi-line);
+  background: var(--ui-surface-raised);
+  border: 1px solid var(--ui-line);
   border-radius: 8px;
   padding: 9px 12px;
   display: flex;
@@ -709,26 +688,26 @@
 .rankBadge {
   font-size: 10px;
   font-weight: 600;
-  color: var(--dsw-alias-label-secondary);
-  background: var(--wi-card);
-  border: 1px solid var(--wi-line);
+  color: var(--ui-text-secondary);
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-line);
   border-radius: 999px;
   padding: 1px 6px;
   flex-shrink: 0;
-  font-variant-numeric: var(--wi-num);
+  font-variant-numeric: var(--ui-num);
   line-height: 14px;
 }
 
 .rankBadgeGold {
-  color: var(--wi-accent);
-  border-color: var(--wi-accent-line);
-  background: var(--wi-accent-tint);
+  color: var(--ui-accent);
+  border-color: var(--ui-accent-line);
+  background: var(--ui-accent-fill);
 }
 
 .rankName {
   font-size: 12px;
   font-weight: 600;
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -737,8 +716,8 @@
 .rankValMain {
   font-size: 12px;
   font-weight: 650;
-  color: var(--dsw-alias-label-primary);
-  font-variant-numeric: var(--wi-num);
+  color: var(--ui-text);
+  font-variant-numeric: var(--ui-num);
   flex-shrink: 0;
   white-space: nowrap;
 }
@@ -746,7 +725,7 @@
 .rankTrack {
   height: 5px;
   border-radius: 999px;
-  background: var(--wi-card);
+  background: var(--ui-surface);
   overflow: hidden;
   width: 100%;
 }
@@ -759,7 +738,7 @@
 
 .rankSubText {
   font-size: 10px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -771,16 +750,16 @@
 }
 
 .rankSubText strong {
-  color: var(--dsw-alias-label-secondary);
+  color: var(--ui-text-secondary);
 }
 
 /* 复合比例条的成对分段（思考/正文、命中/未命中、终端/文件） */
-.barSegThink { background: var(--wi-think); height: 100%; }
-.barSegBody { background: var(--wi-file); height: 100%; }
-.barSegHit { background: var(--wi-ok); height: 100%; }
-.barSegMiss { background: var(--wi-line-strong); height: 100%; }
-.barSegBash { background: var(--wi-ok); height: 100%; }
-.barSegFile { background: var(--wi-file); height: 100%; }
+.barSegThink { background: var(--ui-series-think); height: 100%; }
+.barSegBody { background: var(--ui-series-file); height: 100%; }
+.barSegHit { background: var(--ui-state-success); height: 100%; }
+.barSegMiss { background: var(--ui-line-strong); height: 100%; }
+.barSegBash { background: var(--ui-state-success); height: 100%; }
+.barSegFile { background: var(--ui-series-file); height: 100%; }
 
 /* 工具耗时深度透视 */
 .toolDrillSection {
@@ -799,19 +778,19 @@
 .toolCompoundTrack {
   height: 10px;
   border-radius: 999px;
-  background: var(--wi-inset);
+  background: var(--ui-surface-raised);
   display: flex;
   overflow: hidden;
   gap: 2px;
 }
 
 .toolSliceBash {
-  background: var(--wi-ok);
+  background: var(--ui-state-success);
   height: 100%;
 }
 
 .toolSliceFile {
-  background: var(--wi-file);
+  background: var(--ui-series-file);
   height: 100%;
 }
 
@@ -819,7 +798,7 @@
   display: flex;
   gap: 16px;
   font-size: 11px;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--ui-text-secondary);
   flex-wrap: wrap;
 }
 
@@ -830,8 +809,8 @@
 }
 
 .toolCompoundLegend strong {
-  color: var(--dsw-alias-label-primary);
-  font-variant-numeric: var(--wi-num);
+  color: var(--ui-text);
+  font-variant-numeric: var(--ui-num);
 }
 
 .toolGridCards {
@@ -847,8 +826,8 @@
 }
 
 .toolMiniCard {
-  background: var(--wi-inset);
-  border: 1px solid var(--wi-line);
+  background: var(--ui-surface-raised);
+  border: 1px solid var(--ui-line);
   border-radius: 8px;
   padding: 10px 12px;
   display: flex;
@@ -860,7 +839,7 @@
 .toolMiniTitle {
   font-size: 11px;
   font-weight: 600;
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -872,14 +851,14 @@
 .toolMiniNum {
   font-size: 15px;
   font-weight: 700;
-  color: var(--dsw-alias-label-primary);
-  font-variant-numeric: var(--wi-num);
+  color: var(--ui-text);
+  font-variant-numeric: var(--ui-num);
   margin: 2px 0;
 }
 
 .toolMiniDesc {
   font-size: 10px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
   line-height: 14px;
 }
 
@@ -887,14 +866,14 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  border-top: 1px solid var(--wi-line);
+  border-top: 1px solid var(--ui-line);
   padding-top: 10px;
 }
 
 .toolTopListTitle {
   font-size: 11px;
   font-weight: 600;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--ui-text-secondary);
   margin-bottom: 2px;
 }
 
@@ -908,9 +887,9 @@
 .errorAllGoodBox {
   padding: 14px;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--wi-ok) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--wi-ok) 30%, transparent);
-  color: var(--wi-ok);
+  background: color-mix(in srgb, var(--ui-state-success) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ui-state-success) 30%, transparent);
+  color: var(--ui-state-success);
   font-size: 12px;
   font-weight: 600;
   text-align: center;
@@ -929,9 +908,9 @@
   gap: 8px;
   padding: 6px 10px;
   border-radius: 8px;
-  background: var(--wi-inset);
+  background: var(--ui-surface-raised);
   font-size: 11px;
-  font-variant-numeric: var(--wi-num);
+  font-variant-numeric: var(--ui-num);
   min-width: 0;
 }
 
@@ -946,8 +925,8 @@
 }
 
 .vizPanel {
-  background: var(--wi-card);
-  border: 1px solid var(--wi-line);
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-line);
   border-radius: 12px;
   padding: 14px 16px;
   display: flex;
@@ -957,6 +936,12 @@
   width: 100%;
   box-sizing: border-box;
   overflow: hidden;
+}
+
+.vizHeadTitles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .vizHead {
@@ -970,12 +955,12 @@
 .vizTitle {
   font-size: 13px;
   font-weight: 600;
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
 }
 
 .vizSub {
   font-size: 11px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
 }
 
 /* 环形图：左图右文 */
@@ -1024,15 +1009,15 @@
 .donutCenterNum {
   font-size: 17px;
   font-weight: 700;
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
   line-height: 20px;
-  font-variant-numeric: var(--wi-num);
+  font-variant-numeric: var(--ui-num);
 }
 
 .donutCenterSub {
   font-size: 10px;
   font-weight: 500;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
   margin-top: 2px;
   line-height: 1;
   white-space: nowrap;
@@ -1061,7 +1046,7 @@
 
 .donutLegendRow:hover,
 .donutLegendRowActive {
-  background: var(--wi-inset);
+  background: var(--ui-surface-raised);
 }
 
 .dlLeft {
@@ -1084,14 +1069,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
   min-width: 0;
 }
 
 .dlRight {
-  font-variant-numeric: var(--wi-num);
+  font-variant-numeric: var(--ui-num);
   font-weight: 600;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--ui-text-secondary);
   flex-shrink: 0;
   white-space: nowrap;
 }
@@ -1102,8 +1087,8 @@
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
-  background: var(--wi-inset);
-  border: 1px solid var(--wi-line);
+  background: var(--ui-surface-raised);
+  border: 1px solid var(--ui-line);
   border-radius: 8px;
   font-size: 11px;
   margin-top: 2px;
@@ -1112,7 +1097,7 @@
 
 .donutInspectName {
   font-weight: 600;
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1123,8 +1108,8 @@
 .donutInspectTag {
   font-size: 10px;
   font-weight: 600;
-  color: var(--wi-accent);
-  background: var(--wi-accent-tint);
+  color: var(--ui-accent);
+  background: var(--ui-accent-fill);
   padding: 1px 6px;
   border-radius: 999px;
   flex-shrink: 0;
@@ -1133,9 +1118,9 @@
 
 .donutInspectVal {
   font-size: 11px;
-  font-variant-numeric: var(--wi-num);
+  font-variant-numeric: var(--ui-num);
   font-weight: 600;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--ui-text-secondary);
   flex-shrink: 0;
   white-space: nowrap;
 }
@@ -1173,7 +1158,7 @@
   display: flex;
   flex-direction: column-reverse;
   justify-content: flex-start;
-  background: var(--wi-inset);
+  background: var(--ui-surface-raised);
   border-radius: 5px;
   overflow: hidden;
   min-height: 0;
@@ -1190,13 +1175,13 @@
   width: 100%;
   height: 3px;
   border-radius: 2px;
-  background: var(--dsw-alias-border-l2);
+  background: var(--ui-line);
   margin-top: auto;
 }
 
 .dayLabel {
   font-size: 10px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
   text-align: center;
   line-height: 1;
   overflow: hidden;
@@ -1206,8 +1191,8 @@
 .dayBarTopLabel {
   font-size: 10px;
   font-weight: 600;
-  font-variant-numeric: var(--wi-num);
-  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: var(--ui-num);
+  color: var(--ui-text-secondary);
   text-align: center;
   min-height: 14px;
   line-height: 14px;
@@ -1218,41 +1203,23 @@
 
 .dayColFillActive {
   filter: brightness(1.15);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--wi-accent) 55%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ui-accent) 55%, transparent);
 }
 
 .dayLabelToday {
-  color: var(--wi-accent);
+  color: var(--ui-accent);
   font-weight: 700;
 }
 
 /* 旧版图表占位（保留定义防外部引用） */
-.chartAreaBox {
-  position: relative;
-  width: 100%;
-  height: 180px;
-}
 
-.chartSvg {
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
 
-.chartAxisLabel {
-  font-size: 9px;
-  fill: var(--dsw-alias-label-tertiary);
-}
 
-.chartGridLine {
-  stroke: var(--dsw-alias-border-l2);
-  stroke-dasharray: 2, 3;
-}
 
 .chartFoot {
   font-size: 10px;
-  color: var(--dsw-alias-label-tertiary);
-  border-top: 1px solid var(--wi-line);
+  color: var(--ui-text-tertiary);
+  border-top: 1px solid var(--ui-line);
   padding-top: 8px;
   line-height: 14px;
 }
@@ -1266,15 +1233,6 @@
   min-width: 0;
 }
 
-.tableSortGroup {
-  display: flex;
-  background: var(--dsw-alias-bg-layer-2);
-  padding: 2px;
-  border-radius: 7px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  gap: 2px;
-  flex-shrink: 0;
-}
 
 
 
@@ -1287,6 +1245,9 @@
   box-sizing: border-box;
 }
 
+.cellEnd { text-align: right; }
+.cellCenter { text-align: center; }
+
 .sessionTableHeader {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 0.7fr) minmax(0, 0.7fr) 14px;
@@ -1296,31 +1257,31 @@
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.3px;
-  color: var(--dsw-alias-label-tertiary);
-  border-bottom: 1px solid var(--wi-line);
+  color: var(--ui-text-tertiary);
+  border-bottom: 1px solid var(--ui-line);
   box-sizing: border-box;
 }
 
 .sessionItemRow {
-  border: 1px solid var(--wi-line);
+  border: 1px solid var(--ui-line);
   border-radius: 8px;
-  background: var(--wi-card);
+  background: var(--ui-surface);
   overflow: hidden;
   transition: border-color 120ms;
 }
 
 .sessionItemRow:hover {
-  border-color: var(--wi-line-strong);
+  border-color: var(--ui-line-strong);
 }
 
 .sessionItemOpen {
-  border-color: var(--wi-accent-line);
+  border-color: var(--ui-accent-line);
 }
 
 .tableRankNum {
   font-size: 10px;
-  color: var(--dsw-alias-label-tertiary);
-  font-variant-numeric: var(--wi-num);
+  color: var(--ui-text-tertiary);
+  font-variant-numeric: var(--ui-num);
   margin-right: 4px;
   font-weight: 600;
 }
@@ -1338,7 +1299,7 @@
   gap: 6px;
   cursor: pointer;
   font-size: 11px;
-  font-variant-numeric: var(--wi-num);
+  font-variant-numeric: var(--ui-num);
   box-sizing: border-box;
 }
 
@@ -1353,7 +1314,7 @@
 .sessionTokenBar {
   height: 2px;
   border-radius: 1px;
-  background: var(--wi-accent);
+  background: var(--ui-accent);
   max-width: 100%;
 }
 
@@ -1361,7 +1322,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--ui-text-secondary);
 }
 
 /* 状态文本：色点 + 文字 */
@@ -1384,27 +1345,27 @@
   flex-shrink: 0;
 }
 
-.statusOk { color: var(--wi-ok); }
-.statusOk::before { background: var(--wi-ok); }
+.statusOk { color: var(--ui-state-success); }
+.statusOk::before { background: var(--ui-state-success); }
 
-.statusWarn { color: var(--wi-warn); }
-.statusWarn::before { background: var(--wi-warn); }
+.statusWarn { color: var(--ui-state-warn); }
+.statusWarn::before { background: var(--ui-state-warn); }
 
-.statusBad { color: var(--wi-err); font-weight: 600; }
-.statusBad::before { background: var(--wi-err); }
+.statusBad { color: var(--ui-state-error); font-weight: 600; }
+.statusBad::before { background: var(--ui-state-error); }
 
 .sessionIdTag {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 11px;
   font-weight: 500;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--ui-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .arrowIcon {
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
   transition: transform 120ms;
 }
 
@@ -1414,36 +1375,36 @@
 
 .sessionItemDrawer {
   padding: 10px 12px;
-  background: var(--wi-inset);
-  border-top: 1px solid var(--wi-line);
+  background: var(--ui-surface-raised);
+  border-top: 1px solid var(--ui-line);
   font-size: 11px;
 }
 
 .drawerTitle {
   font-weight: 600;
   margin-bottom: 6px;
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
 }
 
 .drawerBarTrack {
   height: 6px;
   border-radius: 999px;
-  background: var(--wi-card);
+  background: var(--ui-surface);
   display: flex;
   overflow: hidden;
   gap: 2px;
   margin-bottom: 6px;
 }
 
-.drawerSliceModel { background: var(--wi-accent); height: 100%; }
-.drawerSliceTool { background: var(--wi-file); height: 100%; }
+.drawerSliceModel { background: var(--ui-accent); height: 100%; }
+.drawerSliceTool { background: var(--ui-series-file); height: 100%; }
 
 .drawerMetaRow {
   display: flex;
   justify-content: space-between;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--ui-text-secondary);
   font-size: 10px;
-  font-variant-numeric: var(--wi-num);
+  font-variant-numeric: var(--ui-num);
   flex-wrap: wrap;
   gap: 6px;
 }
@@ -1452,7 +1413,7 @@
   padding: 20px;
   text-align: center;
   font-size: 12px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
 }
 
 /* ── 图例与悬停浮层 ── */
@@ -1463,8 +1424,8 @@
   align-items: center;
   gap: 8px 14px;
   padding: 6px 10px;
-  background: var(--wi-inset);
-  border: 1px solid var(--wi-line);
+  background: var(--ui-surface-raised);
+  border: 1px solid var(--ui-line);
   border-radius: 8px;
 }
 
@@ -1473,7 +1434,7 @@
   align-items: center;
   gap: 5px;
   font-size: 11px;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--ui-text-secondary);
   min-width: 0;
 }
 
@@ -1490,13 +1451,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
 }
 
 .chartLegendVal {
-  font-variant-numeric: var(--wi-num);
+  font-variant-numeric: var(--ui-num);
   font-weight: 600;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--ui-text-secondary);
   font-size: 10px;
 }
 
@@ -1511,12 +1472,9 @@
   z-index: 50;
   pointer-events: none;
   background: var(--ui-surface);
-  border: 1px solid var(--dsw-alias-border-l2);
+  border: 1px solid var(--ui-line);
   border-radius: 10px;
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--dsw-alias-label-primary) 4.5%, transparent),
-    0 4px 12px -2px rgba(10, 13, 20, 0.18),
-    0 14px 36px -8px rgba(10, 13, 20, 0.32);
+  box-shadow: var(--ui-elevation-panel);
   padding: 9px 11px;
   min-width: 150px;
   max-width: 260px;
@@ -1534,7 +1492,7 @@
 .chartTooltipDate {
   font-size: 11px;
   font-weight: 600;
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1547,16 +1505,16 @@
   font-weight: 600;
   padding: 1px 6px;
   border-radius: 999px;
-  background: var(--wi-accent-tint);
-  color: var(--wi-accent);
+  background: var(--ui-accent-fill);
+  color: var(--ui-accent);
   flex-shrink: 0;
 }
 
 .chartTooltipTotal {
   font-size: 13px;
   font-weight: 700;
-  color: var(--dsw-alias-label-primary);
-  font-variant-numeric: var(--wi-num);
+  color: var(--ui-text);
+  font-variant-numeric: var(--ui-num);
   display: flex;
   align-items: baseline;
   gap: 5px;
@@ -1566,12 +1524,12 @@
 .chartTooltipSessions {
   font-size: 10px;
   font-weight: 500;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
 }
 
 .chartTooltipDivider {
   height: 1px;
-  background: var(--wi-line);
+  background: var(--ui-line);
   margin: 5px 0;
 }
 
@@ -1608,13 +1566,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--ui-text-secondary);
 }
 
 .chartTooltipModelRight {
-  font-variant-numeric: var(--wi-num);
+  font-variant-numeric: var(--ui-num);
   font-weight: 600;
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
   flex-shrink: 0;
   white-space: nowrap;
 }
@@ -1637,40 +1595,29 @@
 }
 
 .lineGrid {
-  stroke: var(--dsw-alias-border-l2);
+  stroke: var(--ui-line);
   stroke-dasharray: 2, 3;
 }
 
 .lineAxisText {
   font-size: 9px;
-  fill: var(--dsw-alias-label-tertiary);
-  font-variant-numeric: var(--wi-num);
+  fill: var(--ui-text-tertiary);
+  font-variant-numeric: var(--ui-num);
 }
 
 .lineCursor {
-  stroke: var(--wi-accent);
+  stroke: var(--ui-accent);
   stroke-dasharray: 3, 3;
   stroke-width: 1.5;
   pointer-events: none;
 }
 
-.lineActiveOuter {
-  fill: color-mix(in srgb, var(--wi-accent) 25%, transparent);
-  pointer-events: none;
-  animation: linePulse 1.5s infinite ease-in-out;
-}
 
 @keyframes linePulse {
   0%, 100% { transform: scale(1); opacity: 0.8; }
   50% { transform: scale(1.3); opacity: 0.4; }
 }
 
-.lineActiveInner {
-  fill: var(--wi-accent);
-  stroke: var(--ui-surface);
-  stroke-width: 1.5;
-  pointer-events: none;
-}
 
 
 
@@ -1679,8 +1626,8 @@
 /* ── 近 6 个月热力图 ── */
 
 .heatmapPanel {
-  background: var(--wi-card);
-  border: 1px solid var(--wi-line);
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-line);
   border-radius: 12px;
   padding: 14px 16px;
   display: flex;
@@ -1708,26 +1655,26 @@
 .heatmapTitle {
   font-weight: 600;
   font-size: 13px;
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
 }
 
 .heatmapSub {
   font-size: 11px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
 }
 
 .heatmapStatsRow {
   display: flex;
   gap: 14px;
   font-size: 11px;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--ui-text-secondary);
   flex-wrap: wrap;
 }
 
 .heatmapStatsRow strong {
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
   font-weight: 650;
-  font-variant-numeric: var(--wi-num);
+  font-variant-numeric: var(--ui-num);
 }
 
 .heatmapScrollArea {
@@ -1756,7 +1703,7 @@
 .heatmapMonthLabel {
   position: absolute;
   font-size: 10px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -1774,7 +1721,7 @@
   width: 24px;
   flex-shrink: 0;
   font-size: 9px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
   padding: 0;
   user-select: none;
 }
@@ -1801,42 +1748,42 @@
 }
 
 .heatmapCellToday {
-  outline: 1.5px solid var(--wi-accent);
+  outline: 1.5px solid var(--ui-accent);
   outline-offset: 1px;
   z-index: 5;
 }
 
 /* 品牌蓝单色阶：透明度分层，克制微光 */
 .heatmapCell[data-level='0'] {
-  background: var(--dsw-alias-bg-layer-2);
-  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--ui-surface-raised);
+  border: 1px solid var(--ui-line);
 }
 
 .heatmapCell[data-level='1'] {
-  background: color-mix(in srgb, var(--wi-accent) 22%, transparent);
-  border: 1px solid color-mix(in srgb, var(--wi-accent) 35%, transparent);
+  background: color-mix(in srgb, var(--ui-accent) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ui-accent) 35%, transparent);
 }
 
 .heatmapCell[data-level='2'] {
-  background: color-mix(in srgb, var(--wi-accent) 45%, transparent);
-  border: 1px solid color-mix(in srgb, var(--wi-accent) 60%, transparent);
+  background: color-mix(in srgb, var(--ui-accent) 45%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ui-accent) 60%, transparent);
 }
 
 .heatmapCell[data-level='3'] {
-  background: color-mix(in srgb, var(--wi-accent) 72%, transparent);
-  border: 1px solid color-mix(in srgb, var(--wi-accent) 88%, transparent);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--wi-accent) 22%, transparent);
+  background: color-mix(in srgb, var(--ui-accent) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ui-accent) 88%, transparent);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--ui-accent) 22%, transparent);
 }
 
 .heatmapCell[data-level='4'] {
-  background: var(--wi-accent);
-  border: 1px solid var(--wi-accent-line);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--wi-accent) 40%, transparent);
+  background: var(--ui-accent);
+  border: 1px solid var(--ui-accent-line);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--ui-accent) 40%, transparent);
 }
 
 .heatmapCell[data-future='true'] {
   background: transparent;
-  border: 1px dashed var(--dsw-alias-border-l2);
+  border: 1px dashed var(--ui-line);
   opacity: 0.4;
   cursor: default;
 }
@@ -1845,7 +1792,7 @@
 .heatmapCell:hover:not([data-future='true']),
 .heatmapCellActive {
   transform: none;
-  outline: 2px solid var(--wi-accent);
+  outline: 2px solid var(--ui-accent);
   outline-offset: 1px;
   filter: brightness(1.2);
   z-index: 10;
@@ -1856,25 +1803,25 @@
   align-items: center;
   gap: 8px;
   padding: 3px 9px;
-  background: var(--wi-accent-tint);
-  border: 1px solid var(--wi-accent-line);
+  background: var(--ui-accent-fill);
+  border: 1px solid var(--ui-accent-line);
   border-radius: 8px;
   font-size: 11px;
-  color: var(--dsw-alias-label-primary);
+  color: var(--ui-text);
 }
 
 .heatmapLiveDate {
   font-weight: 650;
-  color: var(--wi-accent);
+  color: var(--ui-accent);
 }
 
 .heatmapLiveTokens {
   font-weight: 650;
-  font-variant-numeric: var(--wi-num);
+  font-variant-numeric: var(--ui-num);
 }
 
 .heatmapLiveModel {
-  color: var(--dsw-alias-label-secondary);
+  color: var(--ui-text-secondary);
   font-size: 10px;
 }
 
@@ -1883,8 +1830,8 @@
   justify-content: space-between;
   align-items: center;
   font-size: 10px;
-  color: var(--dsw-alias-label-tertiary);
-  border-top: 1px solid var(--wi-line);
+  color: var(--ui-text-tertiary);
+  border-top: 1px solid var(--ui-line);
   padding-top: 8px;
   margin-top: 4px;
   flex-wrap: wrap;
@@ -1896,7 +1843,7 @@
   align-items: center;
   gap: 4px;
   font-size: 10px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
 }
 
 .heatmapLegendCell {
@@ -1906,38 +1853,38 @@
 }
 
 .heatmapLegendCell[data-level='0'] {
-  background: var(--dsw-alias-bg-layer-2);
-  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--ui-surface-raised);
+  border: 1px solid var(--ui-line);
 }
 
 .heatmapLegendCell[data-level='1'] {
-  background: color-mix(in srgb, var(--wi-accent) 22%, transparent);
-  border: 1px solid color-mix(in srgb, var(--wi-accent) 35%, transparent);
+  background: color-mix(in srgb, var(--ui-accent) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ui-accent) 35%, transparent);
 }
 
 .heatmapLegendCell[data-level='2'] {
-  background: color-mix(in srgb, var(--wi-accent) 45%, transparent);
-  border: 1px solid color-mix(in srgb, var(--wi-accent) 60%, transparent);
+  background: color-mix(in srgb, var(--ui-accent) 45%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ui-accent) 60%, transparent);
 }
 
 .heatmapLegendCell[data-level='3'] {
-  background: color-mix(in srgb, var(--wi-accent) 72%, transparent);
-  border: 1px solid color-mix(in srgb, var(--wi-accent) 88%, transparent);
+  background: color-mix(in srgb, var(--ui-accent) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ui-accent) 88%, transparent);
 }
 
 .heatmapLegendCell[data-level='4'] {
-  background: var(--wi-accent);
-  border: 1px solid var(--wi-accent-line);
+  background: var(--ui-accent);
+  border: 1px solid var(--ui-accent-line);
 }
 
 /* ── 底部设置抽屉 ── */
 
 .settingsDrawer {
-  border: 1px solid var(--wi-line);
+  border: 1px solid var(--ui-line);
   border-radius: 12px;
   padding: 0;
   font-size: 12px;
-  background: var(--wi-card);
+  background: var(--ui-surface);
   overflow: hidden;
 }
 
@@ -1949,7 +1896,7 @@
   cursor: pointer;
   font-weight: 600;
   font-size: 12px;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--ui-text-secondary);
   list-style: none;
   user-select: none;
   transition: color 120ms, background 120ms;
@@ -1960,7 +1907,7 @@
 .settingsSummary::before {
   content: '▸';
   font-size: 10px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--ui-text-tertiary);
   transition: transform 120ms ease;
 }
 
@@ -1969,8 +1916,8 @@
 }
 
 .settingsSummary:hover {
-  color: var(--dsw-alias-label-primary);
-  background: var(--wi-inset);
+  color: var(--ui-text);
+  background: var(--ui-surface-raised);
 }
 
 .settingsDrawerContent {
@@ -1979,19 +1926,12 @@
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
-  border-top: 1px solid var(--wi-line);
+  border-top: 1px solid var(--ui-line);
   margin-top: 0;
   padding-top: 12px;
 }
 
 .priceOverrideHelp,
-.priceOverridePath {
-  width: 100%;
-  margin: 0;
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--dsw-alias-label-tertiary);
-}
 
 .priceOverrideInput {
   width: 100%;
@@ -1999,16 +1939,16 @@
   box-sizing: border-box;
   padding: 8px 10px;
   border-radius: 8px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  background: var(--dsw-alias-bg-layer-1);
-  color: var(--dsw-alias-label-primary);
+  border: 1px solid var(--ui-line);
+  background: var(--ui-surface-sunken);
+  color: var(--ui-text);
   font-size: 11px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   resize: vertical;
 }
 
 .priceOverrideInput:focus-visible {
-  outline: 2px solid var(--wi-accent);
+  outline: 2px solid var(--ui-accent);
   outline-offset: -1px;
 }
 
@@ -2016,7 +1956,7 @@
   width: 100%;
   margin: 0;
   font-size: 11px;
-  color: var(--wi-err);
+  color: var(--ui-state-error);
 }
 
 .priceOverrideActions {
@@ -2032,7 +1972,7 @@
   align-items: center;
   gap: 6px;
   font-size: 11px;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--ui-text-secondary);
   white-space: nowrap;
 }
 
@@ -2046,7 +1986,7 @@
 
 .settingsMiniInput input {
   font-size: 12px;
-  font-variant-numeric: var(--wi-num);
+  font-variant-numeric: var(--ui-num);
   text-align: right;
 }
 

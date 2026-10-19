@@ -150,7 +150,7 @@ function IconLivingEye({ size = 17 }: { size?: number }) {
         />
         <g className={css.eyePupil}>
           <circle cx="9" cy="9" r="2.05" fill="currentColor" />
-          <circle cx="9.65" cy="8.35" r="0.45" fill="var(--dsw-specific-menu)" opacity="0.9" />
+          <circle cx="9.65" cy="8.35" r="0.45" fill="var(--ui-surface)" opacity="0.9" />
         </g>
       </g>
     </svg>

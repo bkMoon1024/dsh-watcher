@@ -42,7 +42,7 @@ export function UsageCharts({ analytics, range, viewMode, setCustomViewMode }: {
           <div className={css.donutWrap}>
             <div className={css.donutSvgBox}>
               <svg viewBox="0 0 100 100" className={css.donutSvg}>
-                <circle cx="50" cy="50" r="38" fill="none" stroke="var(--dsw-alias-bg-layer-2)" strokeWidth="12" />
+                <circle cx="50" cy="50" r="38" fill="none" stroke="var(--ui-surface-raised)" strokeWidth="12" />
                 <g transform="rotate(-90 50 50)">
                   {(analytics?.donutSegments.length ?? 0) === 1 ? (
                     <circle cx="50" cy="50" r="38" fill="none" stroke={analytics!.donutSegments[0].color} strokeWidth="12" />
@@ -107,7 +107,7 @@ export function UsageCharts({ analytics, range, viewMode, setCustomViewMode }: {
         {/* 每日编码活跃度与走势 */}
         <div className={css.vizPanel}>
           <div className={css.vizHead}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <div className={css.vizHeadTitles}>
               <span className={css.vizTitle}>
                 {range === '7' ? '近 7 日活动分布' : range === '30' ? '近 30 日走势' : '近 6 个月趋势'}
               </span>
@@ -330,7 +330,7 @@ export function UsageCharts({ analytics, range, viewMode, setCustomViewMode }: {
                           y1={lineData.bottomY}
                           x2={560 - lineData.padding.right}
                           y2={lineData.bottomY}
-                          stroke="var(--dsw-alias-border-l2)"
+                          stroke="var(--ui-line)"
                           strokeWidth="1"
                         />
                         <text x={lineData.padding.left - 6} y={lineData.bottomY + 3} textAnchor="end" className={css.lineAxisText}>

@@ -16,7 +16,7 @@
   --ui-text: var(--dsw-alias-label-primary);
   --ui-text-secondary: var(--dsw-alias-label-secondary);
   --ui-text-tertiary: var(--dsw-alias-label-tertiary);
-  --ui-text-caption: var(--dsw-alias-label-caption);
+  --ui-text-dimmed: var(--dsw-alias-label-dimmed);
 
   /* Surfaces: opaque menu body over inset bands. */
   --ui-surface: var(--dsw-specific-menu);
@@ -31,7 +31,6 @@
   --ui-state-success: var(--dsw-alias-state-success-primary);
   --ui-state-warn: var(--dsw-alias-state-warn-primary);
   --ui-state-error: var(--dsw-alias-state-error-primary);
-  --ui-state-idle: var(--dsw-alias-state-idle-primary);
   --ui-state-success-fill: color-mix(in srgb, var(--ui-state-success) 10%, transparent);
   --ui-state-warn-fill: color-mix(in srgb, var(--ui-state-warn) 12%, transparent);
   --ui-state-error-fill: color-mix(in srgb, var(--ui-state-error) 12%, transparent);
@@ -44,17 +43,26 @@
 
   /* Interactive fills, so hover/pressed match host controls exactly. */
   --ui-hover: var(--dsw-alias-interactive-bg-hover);
-  --ui-active: var(--dsw-alias-interactive-bg-active);
+  --ui-ghost-active-fill: var(--dsw-alias-button-ghost-active-fill);
+  --ui-ghost-active-line: var(--dsw-alias-button-ghost-active-border);
+  --ui-ghost-active-hover: var(--dsw-alias-button-ghost-active-hover);
+
+  /* Scrollbars and code surfaces, so inner scrollers match host panes. */
+  --ui-scrollbar: var(--dsw-alias-scrollbar-bg-l2);
+  --ui-scrollbar-hover: var(--dsw-alias-scrollbar-hover-l2);
+  --ui-code-block: var(--dsw-alias-markdown-code-block);
 
   /* Geometry and type: host values, not plugin inventions. */
-  --ui-radius-panel: var(--dsw-radius-panel);
   --ui-radius-card: var(--dsw-radius-md);
   --ui-radius-row: var(--dsw-radius-sm);
   --ui-font: var(--dsw-font-family);
   --ui-font-mono: var(--dsw-font-markdown-code-font-family);
+  --ui-num: tabular-nums;
   --ui-elevation-panel: var(--dsw-elevation-panel);
+  --ui-elevation-prominent: var(--dsw-elevation-prominent);
   --ui-elevation-soft: var(--dsw-elevation-soft);
   --ui-focus-ring: var(--dsw-focus-ring-color);
+  --ui-focus-width: var(--dsw-focus-ring-width, 2px);
 
   /* Motion: one curve, three durations, all under 200ms. */
   --ui-ease: cubic-bezier(.2, .8, .2, 1);

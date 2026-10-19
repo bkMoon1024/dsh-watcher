@@ -61,7 +61,7 @@ export function ActivityHeatmap({ analytics }: { analytics: InsightsAnalytics })
                       <span className={css.chartTooltipSessions}>· {hoveredHeatmapDay.sessions} 个会话</span>
                     </>
                   ) : (
-                    <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--dsw-alias-label-tertiary)' }}>当日未产生模型调用</span>
+                    <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--ui-text-tertiary)' }}>当日未产生模型调用</span>
                   )}
                 </div>
                 {hoveredHeatmapDay.models.length > 0 && <div className={css.chartTooltipDivider} />}

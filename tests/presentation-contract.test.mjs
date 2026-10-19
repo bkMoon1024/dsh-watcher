@@ -227,7 +227,7 @@ test('collapsing the overlay drawer animates instead of popping away', async () 
   assert.match(styles, /\.inspector \{[\s\S]*?position: absolute;/)
   assert.match(styles, /@keyframes watcher-inspector-enter \{\s*from \{ opacity: 0; transform: translateX\(28px\); \}\s*\}/)
   assert.match(styles, /@keyframes watcher-inspector-exit \{\s*to \{ opacity: 0; transform: translateX\(28px\); \}\s*\}/)
-  assert.match(styles, /animation: watcher-inspector-exit var\(--watcher-motion-inspector\) var\(--watcher-ease-glide\) forwards/)
+  assert.match(styles, /animation: watcher-inspector-exit var\(--ui-motion-slow\) var\(--ui-ease\) forwards/)
   assert.doesNotMatch(styles, /watcher-inspector-content-out/)
   const reduced = styles.slice(styles.indexOf('@media (prefers-reduced-motion: reduce)'))
   assert.match(reduced, /\.inspector\[data-closing\],\s*\n\s*\.inspector\[data-closing\] > \* \{ animation-duration: \.01ms; animation-delay: 0s; \}/)
@@ -239,7 +239,7 @@ test('the overlay drawer covers the work path without reflowing it', async () =>
   // The drawer is an opaque right-anchored overlay; it must never rely on
   // fixed-width children (the old docked-column reflow trick).
   assert.match(styles, /\.inspector \{[\s\S]*?width: min\(460px, 100%\);/)
-  assert.match(styles, /\.inspector \{[\s\S]*?border-left: 1px solid var\(--dsw-alias-border-l2\);/)
+  assert.match(styles, /\.inspector \{[\s\S]*?border-left: 1px solid var\(--ui-line\);/)
   assert.match(styles, /rgb\(from var\(--ui-surface\) r g b \/ 1\)/)
   assert.doesNotMatch(styles, /\.inspector > \* \{\s*box-sizing: border-box;\s*width: 438px;/)
   assert.match(styles, /\.statusLine,\s*\n\.detailStatus \{\s*display: flex;\s*\n\s*flex-wrap: wrap;/)

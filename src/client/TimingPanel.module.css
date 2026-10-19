@@ -286,10 +286,6 @@
   text-align: right;
 }
 
-.activeVal {
-  color: var(--ui-state-warn);
-  font-weight: 700;
-}
 
 @keyframes pulse {
   0%, 100% { opacity: 1; transform: scale(1); }

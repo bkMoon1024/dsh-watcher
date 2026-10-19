@@ -9,6 +9,7 @@ import { defaultPricing, mergePricing, readStoredOverride } from '../insights/pr
 // @ts-ignore TS7016: no declarations for the local .mjs module
 import { detectLocale } from '../insights/i18n.mjs'
 import css from './Insights.module.css'
+import tokensCss from './ui/tokens.module.css'
 
 /** Shared formatting, storage and chart plumbing for both Insights surfaces. */
 
@@ -255,7 +256,7 @@ export function ChartTooltip({ anchor, children }: { anchor: ChartAnchor | null;
   }, [anchor])
   if (anchor === null) return null
   return createPortal(
-    <div ref={cardRef} className={`${css.chartTooltipBox} ${css.chartTooltipPortal}`}>
+    <div ref={cardRef} className={`${tokensCss.tokens} ${css.chartTooltipBox} ${css.chartTooltipPortal}`}>
       {children}
     </div>,
     document.body,

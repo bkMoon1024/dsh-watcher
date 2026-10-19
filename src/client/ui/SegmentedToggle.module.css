@@ -40,7 +40,7 @@
 }
 
 .option:focus-visible {
-  outline: var(--dsw-focus-ring-width, 2px) solid var(--ui-focus-ring);
+  outline: var(--ui-focus-width, 2px) solid var(--ui-focus-ring);
   outline-offset: 1px;
 }
 
