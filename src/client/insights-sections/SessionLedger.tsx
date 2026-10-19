@@ -98,6 +98,8 @@ export function SessionLedger({ analytics, sessions, sessionSort, setSessionSort
               )
             })}
           </div>
+        ) : sessions === null ? (
+          <div className={css.emptyScan}>正在读取本地会话…</div>
         ) : (
           <div className={css.emptyScan}>暂无已缓存的对话统计。</div>
         )}
