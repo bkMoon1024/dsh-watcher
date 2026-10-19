@@ -1,4 +1,4 @@
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type {} from '@deepseek-ai/dsh-client-ui-chat/client'
 import type {} from '@deepseek-ai/dsh-session-stats/client'
@@ -6,7 +6,6 @@ import {
   IconChevronRightOutlineRegular,
   IconRefreshOutlineRegular,
   Pill,
-  useAnchoredPosition,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
@@ -35,6 +34,7 @@ import css from './Watcher.module.css'
 import tokensCss from './ui/tokens.module.css'
 import { SessionInsights } from './SessionInsights.tsx'
 import { SegmentedToggle } from './ui/SegmentedToggle.tsx'
+import { usePanelGeometry } from './panel-geometry.ts'
 import {
   OVERVIEW_STATE_LABEL,
   overviewStateOf,
@@ -85,8 +85,6 @@ type HistoryLoadState =
   | { kind: 'complete' }
   | { kind: 'error'; message: string }
 
-const PANEL_GAP = 8
-const PANEL_MARGIN = 12
 /**
  * Mirrors the docked inspector choreography in `Watcher.module.css`: the detail
  * content leaves first, the column closes after it. The fallback keeps the
@@ -95,40 +93,6 @@ const PANEL_MARGIN = 12
 const INSPECTOR_CONTENT_EXIT_MS = 120
 const INSPECTOR_EXIT_MS = 200
 const INSPECTOR_EXIT_FALLBACK_MS = INSPECTOR_CONTENT_EXIT_MS + INSPECTOR_EXIT_MS + 250
-const UNPLACED_PANEL_STYLE: CSSProperties = { visibility: 'hidden', left: 0, top: 0 }
-const PANEL_SIZE_KEY = 'dsh-watcher:panel-size:v1'
-const PANEL_SIZE_MIN_W = 320
-const PANEL_SIZE_MIN_H = 200
-
-/** A resized panel is a deliberate layout choice; remember it across reopens. */
-function readStoredPanelSize(): { width: number; height: number } | null {
-  try {
-    const raw = globalThis.localStorage?.getItem(PANEL_SIZE_KEY)
-    if (raw == null) return null
-    const parsed: unknown = JSON.parse(raw)
-    if (typeof parsed !== 'object' || parsed === null) return null
-    const width = (parsed as Record<string, unknown>).width
-    const height = (parsed as Record<string, unknown>).height
-    if (typeof width !== 'number' || !Number.isFinite(width) || typeof height !== 'number' || !Number.isFinite(height)) return null
-    const clamp = (value: number, floor: number, ceil: number) => Math.min(Math.max(value, floor), Math.max(floor, ceil))
-    return {
-      width: clamp(width, PANEL_SIZE_MIN_W, window.innerWidth - PANEL_MARGIN * 2),
-      height: clamp(height, PANEL_SIZE_MIN_H, window.innerHeight - PANEL_MARGIN * 2),
-    }
-  } catch {
-    return null
-  }
-}
-
-function writeStoredPanelSize(size: { width: number; height: number } | null): void {
-  try {
-    if (size === null) globalThis.localStorage?.removeItem(PANEL_SIZE_KEY)
-    else globalThis.localStorage?.setItem(PANEL_SIZE_KEY, JSON.stringify(size))
-  } catch {
-    // Storage is best-effort; the live panel never depends on it.
-  }
-}
-
 /** The pupil scans only while live; the complete eye remains a useful static glyph. */
 function IconLivingEye({ size = 17 }: { size?: number }) {
   return (
@@ -254,20 +218,6 @@ function ReadyWatcher({
   const [inspectorClosing, setInspectorClosing] = useState(false)
   const inspectorExitTimer = useRef<number | null>(null)
   const inspectorExitToLatest = useRef(false)
-  const [panelPin, setPanelPin] = useState<{ top: number; right: number } | null>(null)
-  const panelPinTimer = useRef<number | null>(null)
-  /** Resize anchors the panel at its current top-left; null until first resized. */
-  const [panelPos, setPanelPos] = useState<{ left: number; top: number } | null>(null)
-  /** User-chosen panel size; unset falls back to the CSS auto/max-height layout. */
-  const [panelSize, setPanelSize] = useState<{ width: number; height: number } | null>(readStoredPanelSize)
-  /** A size restored from storage is a preference, not a floor: the first drag
-   * may shrink it back down, while a first-ever drag keeps the natural layout
-   * it opened at as the minimum. */
-  const restoredSizeRef = useRef(panelSize !== null)
-  const [resizing, setResizing] = useState(false)
-  const resizeStart = useRef<{ x: number; y: number; w: number; h: number } | null>(null)
-  /** The natural size the panel opened at — the floor; resize can only grow. */
-  const resizeMin = useRef<{ w: number; h: number } | null>(null)
   const [observationMode, setObservationMode] = useState<ObservationMode>('itemized')
   const [disclosure, setDisclosure] = useState(createDisclosureState)
   const [historyLoad, setHistoryLoad] = useState<HistoryLoadState>({ kind: 'idle' })
@@ -275,17 +225,11 @@ function ReadyWatcher({
   const followRef = useRef(createFollow())
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
-  const panelRef = useRef<HTMLDivElement>(null)
   const railRef = useRef<HTMLDivElement>(null)
   const programmaticScrollRef = useRef(false)
   const historyAbortRef = useRef<AbortController | null>(null)
-  const panelPosition = useAnchoredPosition({
-    open,
-    anchorRef: triggerRef,
-    panelRef,
-    gap: PANEL_GAP,
-    margin: PANEL_MARGIN,
-  })
+  const geometry = usePanelGeometry({ open, anchorRef: triggerRef, fallbackExitMs: INSPECTOR_EXIT_FALLBACK_MS })
+  const panelRef = geometry.panelRef
 
   // The panel is portaled out of the conversation header so it can sit above
   // the sticky composer and every shell column. Outside dismissal therefore
@@ -379,7 +323,7 @@ function ReadyWatcher({
 
   const selectItem = (group: WorkGroup, item: WorkItem) => {
     clearInspectorExit()
-    pinPanelFrame()
+    geometry.pinFrame()
     setInspectorClosing(false)
     setUi(followRef.current.onSelect(group.id))
     setSelectedItemId(item.id)
@@ -424,159 +368,6 @@ function ReadyWatcher({
     inspectorExitTimer.current = null
   }
 
-  const clearPanelPin = () => {
-    if (panelPinTimer.current !== null) {
-      window.clearTimeout(panelPinTimer.current)
-      panelPinTimer.current = null
-    }
-    setPanelPin(null)
-  }
-
-  /**
-   * Opening and closing the docked inspector both change the panel's own width,
-   * and a clamped panel derives its inline `left` from that width. The
-   * ResizeObserver re-derives it a frame after layout, so mid-animation the
-   * frame flicked left and right on every tick. Freezing the measured frame for
-   * the transition lets the left edge follow layout instead of a measurement;
-   * an unclamped panel needs no pin, because its `left` does not depend on the
-   * width.
-   */
-  const pinPanelFrame = () => {
-    const panel = panelRef.current
-    if (panel === null) return
-    // A resized panel owns its left; the width change can still push it off the
-    // right edge, so re-clamp after the new frame lands instead of pinning.
-    if (panelPos !== null) {
-      requestAnimationFrame(() => {
-        const w = panel.offsetWidth
-        const h = panel.offsetHeight
-        setPanelPos(current => current === null ? current : {
-          left: Math.min(Math.max(current.left, PANEL_MARGIN), window.innerWidth - w - PANEL_MARGIN),
-          top: Math.min(Math.max(current.top, PANEL_MARGIN), window.innerHeight - h - PANEL_MARGIN),
-        })
-      })
-      return
-    }
-    if (panelPosition === null) return
-    const { left, top } = panelPosition
-    // Layout values, not getBoundingClientRect: the panel's entry animation is
-    // scaled, and offsetWidth/top ignore transforms.
-    if (typeof left !== 'number' || typeof top !== 'number') return
-    const right = window.innerWidth - (left + panel.offsetWidth)
-    if (Math.abs(right - PANEL_MARGIN) > 1) return
-    setPanelPin({ top, right })
-    if (panelPinTimer.current !== null) window.clearTimeout(panelPinTimer.current)
-    panelPinTimer.current = window.setTimeout(clearPanelPin, INSPECTOR_EXIT_FALLBACK_MS)
-  }
-
-  /**
-   * Resize the panel from its right / bottom / corner edges. The panel keeps
-   * its frame position the whole time — resize only changes the size, so the
-   * anchored spot is never lost. The floor is the natural size the panel
-   * opened at: it can grow but never shrink below what the layout needs.
-   */
-  const onResizeStart = (event: ReactPointerEvent<HTMLElement>, axes: 'both' | 'x' | 'y') => {
-    if (event.button !== 0) return
-    const panel = panelRef.current
-    if (panel === null) return
-    event.preventDefault()
-    event.stopPropagation()
-    const rect = panel.getBoundingClientRect()
-    // Freeze the current frame into left/top so a right-pinned or
-    // anchor-clamped panel holds its position while only its size changes.
-    if (panelPos === null) setPanelPos({ left: rect.left, top: rect.top })
-    setPanelPin(null)
-    // The first resize establishes the minimum; the panel can only grow. A
-    // restored size is exempt — it was chosen elsewhere and may shrink.
-    if (resizeMin.current === null) {
-      resizeMin.current = restoredSizeRef.current
-        ? { w: PANEL_SIZE_MIN_W, h: PANEL_SIZE_MIN_H }
-        : { w: rect.width, h: rect.height }
-    }
-    resizeStart.current = { x: event.clientX, y: event.clientY, w: rect.width, h: rect.height }
-    setResizing(true)
-    const minW = resizeMin.current.w
-    const minH = resizeMin.current.h
-    // The panel's fixed left/top doesn't move during a resize, so the max
-    // width/height is whatever still fits to its right/below.
-    const maxW = Math.max(minW, window.innerWidth - rect.left - PANEL_MARGIN)
-    const maxH = Math.max(minH, window.innerHeight - rect.top - PANEL_MARGIN)
-    const applyMove = (e: PointerEvent) => {
-      const s = resizeStart.current
-      if (s === null) return
-      setPanelSize(current => ({
-        width: axes === 'y' ? (current?.width ?? s.w) : Math.min(Math.max(s.w + (e.clientX - s.x), minW), maxW),
-        height: axes === 'x' ? (current?.height ?? s.h) : Math.min(Math.max(s.h + (e.clientY - s.y), minH), maxH),
-      }))
-    }
-    // One size commit per frame: pointermove outpaces React renders while dragging.
-    let pending: PointerEvent | null = null
-    let frame: number | null = null
-    const move = (e: PointerEvent) => {
-      pending = e
-      if (frame !== null) return
-      frame = requestAnimationFrame(() => {
-        frame = null
-        const ev = pending
-        pending = null
-        if (ev !== null) applyMove(ev)
-      })
-    }
-    const up = () => {
-      window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', up)
-      if (frame !== null) {
-        cancelAnimationFrame(frame)
-        frame = null
-      }
-      const ev = pending
-      pending = null
-      if (ev !== null) applyMove(ev)
-      resizeStart.current = null
-      setResizing(false)
-      const el = panelRef.current
-      if (el !== null) writeStoredPanelSize({ width: el.offsetWidth, height: el.offsetHeight })
-    }
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', up)
-  }
-
-  /** A double-click on the grip returns the panel to its anchored auto layout. */
-  const resetPanelSize = () => {
-    writeStoredPanelSize(null)
-    resizeMin.current = null
-    setPanelPin(null)
-    setPanelPos(null)
-    setPanelSize(null)
-  }
-
-  // A resized panel owns fixed coordinates; a shrinking viewport has to pull it
-  // (and its size) back inside the window instead of stranding it off-screen.
-  useEffect(() => {
-    const onWindowResize = () => {
-      setPanelPos(current => {
-        if (current === null) return current
-        const panel = panelRef.current
-        const w = panel?.offsetWidth ?? 0
-        const h = panel?.offsetHeight ?? 0
-        const clamp = (value: number, ceil: number) => Math.min(Math.max(value, PANEL_MARGIN), Math.max(PANEL_MARGIN, ceil))
-        return {
-          left: clamp(current.left, window.innerWidth - w - PANEL_MARGIN),
-          top: clamp(current.top, window.innerHeight - h - PANEL_MARGIN),
-        }
-      })
-      setPanelSize(current => {
-        if (current === null) return current
-        return {
-          width: Math.min(current.width, Math.max(PANEL_SIZE_MIN_W, window.innerWidth - PANEL_MARGIN * 2)),
-          height: Math.min(current.height, Math.max(PANEL_SIZE_MIN_H, window.innerHeight - PANEL_MARGIN * 2)),
-        }
-      })
-    }
-    window.addEventListener('resize', onWindowResize)
-    return () => window.removeEventListener('resize', onWindowResize)
-  }, [])
-
   /**
    * Closing the inspector is one continuous motion: the column narrows while
    * the detail content slides right and disappears under the work-path card.
@@ -595,7 +386,7 @@ function ReadyWatcher({
   const closeInspector = (toLatest = false) => {
     if (inspectorClosing) return
     inspectorExitToLatest.current = toLatest
-    pinPanelFrame()
+    geometry.pinFrame()
     setInspectorClosing(true)
     // The animation end is the primary signal; this keeps the control working
     // when the animation never runs or its event is lost.
@@ -604,7 +395,6 @@ function ReadyWatcher({
 
   useEffect(() => () => {
     clearInspectorExit()
-    if (panelPinTimer.current !== null) window.clearTimeout(panelPinTimer.current)
   }, [])
 
   const pinForDisclosure = () => {
@@ -685,16 +475,9 @@ function ReadyWatcher({
           <div
             ref={panelRef}
             className={`${tokensCss.tokens} ${tokensCss.series} ${css.menu}`}
-            style={(() => {
-              const pos = panelPos !== null
-                ? panelPos
-                : panelPin === null
-                  ? panelPosition ?? UNPLACED_PANEL_STYLE
-                  : { top: panelPin.top, right: panelPin.right, left: 'auto' as const }
-              return panelSize === null ? pos : { ...pos, width: panelSize.width, height: panelSize.height, maxHeight: 'none' as const }
-            })()}
-            data-sized={panelSize !== null ? '' : undefined}
-            data-resizing={resizing ? '' : undefined}
+            style={geometry.style}
+            data-sized={geometry.sized ? '' : undefined}
+            data-resizing={geometry.resizing ? '' : undefined}
             role="dialog"
             aria-modal="false"
             aria-label="Watcher 工作图"
@@ -957,14 +740,14 @@ function ReadyWatcher({
                   </div>
                 )}
             </section>
-            <div className={css.resizeEdgeRight} aria-hidden="true" onPointerDown={e => onResizeStart(e, 'x')} />
-            <div className={css.resizeEdgeBottom} aria-hidden="true" onPointerDown={e => onResizeStart(e, 'y')} />
+            <div className={css.resizeEdgeRight} aria-hidden="true" onPointerDown={e => geometry.startResize(e, 'x')} />
+            <div className={css.resizeEdgeBottom} aria-hidden="true" onPointerDown={e => geometry.startResize(e, 'y')} />
             <div
               className={css.resizeGrip}
               aria-hidden="true"
               title="拖动调整大小 · 双击恢复默认尺寸"
-              onPointerDown={e => onResizeStart(e, 'both')}
-              onDoubleClick={resetPanelSize}
+              onPointerDown={e => geometry.startResize(e, 'both')}
+              onDoubleClick={geometry.resetSize}
             />
           </div>,
           document.body,

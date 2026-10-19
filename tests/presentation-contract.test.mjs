@@ -219,9 +219,13 @@ test('collapsing the overlay drawer animates instead of popping away', async () 
   assert.match(source, /onClick=\{selected === undefined \? backToLatest : \(\) => closeInspector\(true\)\}/)
   // Closing must not silently re-arm follow; only the "查看最新" affordance does.
   assert.match(source, /clearSelection/)
-  assert.match(source, /const pinPanelFrame = \(\) => \{/)
-  assert.match(source, /setPanelPin\(\{ top, right \}\)/)
-  assert.match(source, /: \{ top: panelPin\.top, right: panelPin\.right, left: 'auto' as const \}/)
+  // Frame pinning lives in the panel-geometry hook so the panel component
+  // stays about the work picture. The pin freezes the measured frame and
+  // releases it to the anchor again on a timer.
+  assert.match(clientCode, /const pinFrame = useCallback\(\(\) => \{/)
+  assert.match(clientCode, /setPin\(\{ top, right \}\)/)
+  assert.match(clientCode, /: \{ top: pin\.top, right: pin\.right, left: 'auto' as const \}/)
+  assert.match(clientCode, /pinTimer\.current = window\.setTimeout\(clearPin, fallbackExitMs\)/)
   // The overlay drawer never changes the panel width, so the slide is pure
   // transform: nothing reflows, and the fixed-width children trick is gone.
   assert.match(styles, /\.inspector \{[\s\S]*?position: absolute;/)
