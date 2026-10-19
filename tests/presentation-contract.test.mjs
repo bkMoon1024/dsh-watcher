@@ -6,6 +6,7 @@ import test from 'node:test'
 const clientDir = new URL('../src/client/', import.meta.url)
 const watcherSource = new URL('../src/client/Watcher.tsx', import.meta.url)
 const clientStyles = new URL('../src/client/Watcher.module.css', import.meta.url)
+const settingsStyles = new URL('../src/client/Insights.module.css', import.meta.url)
 
 /**
  * The client UI is split across several files; these contracts describe the
@@ -136,6 +137,42 @@ test('the overview keeps every Step and occurrence reachable through folding and
   assert.match(styles, /\.menu:has\(\.inspector\) \.workPicture\s*\{\s*display:\s*none;/)
   assert.doesNotMatch(styles, /max-height:\s*48vh/)
   assert.doesNotMatch(styles, /\.groupDot|\.nowTag/)
+})
+
+test('both panel tabs keep a mounted tabpanel so aria-controls never dangles', async () => {
+  const [source, styles] = await Promise.all([
+    clientSource,
+    readFile(clientStyles, 'utf8'),
+  ])
+
+  // SegmentedControl names each panel `<id>-<value>-panel`. Only the selected
+  // tab renders content, but both panels stay in the DOM with the inactive one
+  // hidden, so every tab's aria-controls resolves to a real element.
+  assert.match(source, /id="watcher-panel-stats-panel"/)
+  assert.match(source, /aria-labelledby="watcher-panel-stats"/)
+  assert.match(source, /hidden=\{panelTab !== 'stats'\}/)
+  assert.match(source, /id="watcher-panel-path-panel"/)
+  assert.match(source, /aria-labelledby="watcher-panel-path"/)
+  assert.match(source, /hidden=\{panelTab !== 'path'\}/)
+  assert.match(source, /<SegmentedControl\s+id="watcher-panel"/)
+
+  // A class-level display value outranks the user agent's [hidden] rule.
+  assert.match(styles, /\.pathPanel\[hidden\],[\s\S]*?\.statsPanel\[hidden\]\s*\{[^}]*display:\s*none;/)
+})
+
+test('each settings section keeps a mounted tabpanel too', async () => {
+  const [source, styles] = await Promise.all([
+    clientSource,
+    readFile(settingsStyles, 'utf8'),
+  ])
+
+  for (const section of ['overview', 'trends', 'sessions', 'prefs']) {
+    assert.match(source, new RegExp(`id="watcher-settings-${section}-panel"`))
+    assert.match(source, new RegExp(`aria-labelledby="watcher-settings-${section}"`))
+    assert.match(source, new RegExp(`hidden=\{tab !== '${section}'\}`))
+  }
+  assert.match(source, /<SegmentedControl\s+id="watcher-settings"/)
+  assert.match(styles, /\.settingsPanel\[hidden\]\s*\{[^}]*display:\s*none;/)
 })
 
 test('partial history stays explicitly loadable without blocking Host summary', async () => {

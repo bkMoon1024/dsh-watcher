@@ -340,6 +340,13 @@
   min-width: 0;
 }
 
+/* Each section keeps a mounted panel so the tab's aria-controls resolves;
+   only the selected one renders content. The class display value outranks
+   the user agent's [hidden] rule, so restate it. */
+.settingsPanel[hidden] {
+  display: none;
+}
+
 /* ── 页头：标题 + 时间范围 + 刷新 ── */
 
 .cockpitHeader {

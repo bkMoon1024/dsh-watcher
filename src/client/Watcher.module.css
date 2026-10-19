@@ -271,6 +271,14 @@
   min-height: 0;
 }
 
+/* The tab panels stay mounted so each tab's aria-controls resolves; the
+   inactive one keeps its content unmounted and its shell hidden. The class
+   display value outranks the user agent's [hidden] rule, so restate it. */
+.pathPanel[hidden],
+.statsPanel[hidden] {
+  display: none;
+}
+
 .statsPanel {
   overflow: auto;
   padding: 12px 14px 18px;

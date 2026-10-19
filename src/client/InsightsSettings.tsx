@@ -205,10 +205,11 @@ export function InsightsSettings(props: { remote?: any }) {
         : null}
 
       <div
-        id={`watcher-settings-${tab}-panel`}
+        id="watcher-settings-overview-panel"
         role="tabpanel"
-        aria-labelledby={`watcher-settings-${tab}`}
+        aria-labelledby="watcher-settings-overview"
         className={css.settingsPanel}
+        hidden={tab !== 'overview'}
       >
         {tab === 'overview'
           ? (
@@ -258,7 +259,15 @@ export function InsightsSettings(props: { remote?: any }) {
             </>
           )
           : null}
+      </div>
 
+      <div
+        id="watcher-settings-trends-panel"
+        role="tabpanel"
+        aria-labelledby="watcher-settings-trends"
+        className={css.settingsPanel}
+        hidden={tab !== 'trends'}
+      >
         {tab === 'trends'
           ? (
             <>
@@ -272,7 +281,15 @@ export function InsightsSettings(props: { remote?: any }) {
             </>
           )
           : null}
+      </div>
 
+      <div
+        id="watcher-settings-sessions-panel"
+        role="tabpanel"
+        aria-labelledby="watcher-settings-sessions"
+        className={css.settingsPanel}
+        hidden={tab !== 'sessions'}
+      >
         {tab === 'sessions'
           ? (
             <SessionLedger
@@ -283,9 +300,18 @@ export function InsightsSettings(props: { remote?: any }) {
             />
           )
           : null}
+      </div>
 
+      <div
+        id="watcher-settings-prefs-panel"
+        role="tabpanel"
+        aria-labelledby="watcher-settings-prefs"
+        className={css.settingsPanel}
+        hidden={tab !== 'prefs'}
+      >
         {tab === 'prefs' ? <SettingsPrefs copy={copy} /> : null}
       </div>
+
 
       {activeDrilldown && analytics
         ? (

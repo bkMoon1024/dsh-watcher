@@ -670,14 +670,15 @@ function ReadyWatcher({
                 </div>
               </header>
 
-              {panelTab === 'stats'
-                ? (
-                  <div
-                    id="watcher-panel-stats-panel"
-                    role="tabpanel"
-                    aria-labelledby="watcher-panel-stats"
-                    className={css.statsPanel}
-                  >
+              <div
+                id="watcher-panel-stats-panel"
+                role="tabpanel"
+                aria-labelledby="watcher-panel-stats"
+                className={css.statsPanel}
+                hidden={panelTab !== 'stats'}
+              >
+                {panelTab === 'stats'
+                  ? (
                     <SessionInsights
                       value={wholeSessionInsights}
                       now={now}
@@ -686,15 +687,20 @@ function ReadyWatcher({
                       onEvidence={locateEvidence}
                       tokensPerSecond={liveTokensPerSecond}
                     />
-                  </div>
-                )
-                : (
-                  <div
-                    id="watcher-panel-path-panel"
-                    role="tabpanel"
-                    aria-labelledby="watcher-panel-path"
-                    className={css.pathPanel}
-                  >
+                  )
+                  : null}
+              </div>
+
+              <div
+                id="watcher-panel-path-panel"
+                role="tabpanel"
+                aria-labelledby="watcher-panel-path"
+                className={css.pathPanel}
+                hidden={panelTab !== 'path'}
+              >
+                {panelTab === 'path'
+                  ? (
+                    <>
                     <div className={css.pathToolbar} aria-label="路径视图设置">
                       <Input
                         className={css.filterInput}
@@ -929,8 +935,10 @@ function ReadyWatcher({
                           </div>
                         </div>
                       )}
-                  </div>
-                )}
+                    </>
+                  )
+                  : null}
+              </div>
             </section>
             <div className={css.resizeEdgeRight} aria-hidden="true" onPointerDown={e => geometry.startResize(e, 'x')} />
             <div className={css.resizeEdgeBottom} aria-hidden="true" onPointerDown={e => geometry.startResize(e, 'y')} />
