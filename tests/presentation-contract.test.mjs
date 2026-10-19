@@ -142,7 +142,8 @@ test('partial history stays explicitly loadable without blocking Host summary', 
   assert.match(source, /onClick=\{startHistoryLoad\}/)
   assert.match(source, /void loadAllHistory\(controller\.signal\)/)
   assert.doesNotMatch(source, /载入全部轮次/)
-  assert.match(styles, /\.historyNotice\s*\{/)
+  assert.match(styles, /\.loadAllInlineBtn\s*\{/)
+  assert.doesNotMatch(styles, /\.historyNotice\s*\{/)
 })
 
 test('wall-clock evidence is visible at every useful level without heuristic speed', async () => {
@@ -168,10 +169,9 @@ test('wall-clock evidence is visible at every useful level without heuristic spe
   assert.doesNotMatch(overview, /需要处理/)
   assert.match(overview, /有失败记录/)
   assert.doesNotMatch(styles, /\.turnMetrics\s*\{/)
-  assert.match(styles, /\.sessionTiming\s*\{/)
+  assert.match(styles, /\.turnPerformance\s*\{/)
   assert.match(styles, /\.stepDuration\s*\{/)
   assert.match(styles, /\.occurrenceDuration\s*\{/)
-  assert.match(styles, /grid-template-columns:\s*repeat\(3,/)
   assert.match(performance, /firstTokenTime/)
   assert.match(performance, /outputTokens \/ \(fold\.decodeMs \/ 1000\)/)
 })
