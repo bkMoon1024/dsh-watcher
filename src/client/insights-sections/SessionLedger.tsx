@@ -62,7 +62,12 @@ export function SessionLedger({ analytics, sessions, sessionSort, setSessionSort
               const tokenBarPct = Math.max(4, Math.round(((val.totals.tokens ?? 0) / analytics.maxSessionTokens) * 100))
               return (
                 <div key={row.sessionId} className={`${css.sessionItemRow} ${isOpen ? css.sessionItemOpen : ''}`}>
-                  <button type="button" className={css.sessionItemHead} onClick={() => setOpenSessionId(isOpen ? null : row.sessionId)}>
+                  <button
+                    type="button"
+                    className={css.sessionItemHead}
+                    aria-expanded={isOpen}
+                    onClick={() => setOpenSessionId(isOpen ? null : row.sessionId)}
+                  >
                     <span className={css.sessionIdTag} title={row.sessionId}>
                       <strong className={css.tableRankNum}>#{idx + 1}</strong> {row.sessionId.length > 12 ? `${row.sessionId.slice(0, 6)}…${row.sessionId.slice(-3)}` : row.sessionId}
                     </span>

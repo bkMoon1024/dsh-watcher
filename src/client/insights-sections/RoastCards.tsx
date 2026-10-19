@@ -15,8 +15,10 @@ export function RoastCards({ analytics, activeDrilldown, setActiveDrilldown }: {
       {/* 六大极客风云与问题洞察榜单：两列规整自适应排版，右下角动作条绝对平齐 */}
       <div className={css.roastGrid}>
         {/* 卡片 1: 极致打字机 */}
-        <div
+        <button
+          type="button"
           className={`${css.roastItem} ${activeDrilldown === 'speed' ? css.roastItemActive : ''}`}
+          aria-expanded={activeDrilldown === 'speed'}
           data-tone="ok"
           onClick={() => setActiveDrilldown(activeDrilldown === 'speed' ? null : 'speed')}
         >
@@ -33,11 +35,13 @@ export function RoastCards({ analytics, activeDrilldown, setActiveDrilldown }: {
             <span className={css.roastFooterLeft}>首响应耗时</span>
             <span className={css.roastAction}>{activeDrilldown === 'speed' ? '收起明细' : '展开明细'}</span>
           </div>
-        </div>
+        </button>
 
         {/* 卡片 2: 最慢树懒 */}
-        <div
+        <button
+          type="button"
           className={`${css.roastItem} ${activeDrilldown === 'latency' ? css.roastItemActive : ''}`}
+          aria-expanded={activeDrilldown === 'latency'}
           data-tone="warn"
           onClick={() => setActiveDrilldown(activeDrilldown === 'latency' ? null : 'latency')}
         >
@@ -54,11 +58,13 @@ export function RoastCards({ analytics, activeDrilldown, setActiveDrilldown }: {
             <span className={css.roastFooterLeft}>排队瓶颈</span>
             <span className={css.roastAction}>{activeDrilldown === 'latency' ? '收起明细' : '展开明细'}</span>
           </div>
-        </div>
+        </button>
 
         {/* 卡片 3: 深度沉思狂 */}
-        <div
+        <button
+          type="button"
           className={`${css.roastItem} ${activeDrilldown === 'thinking' ? css.roastItemActive : ''}`}
+          aria-expanded={activeDrilldown === 'thinking'}
           data-tone="think"
           onClick={() => setActiveDrilldown(activeDrilldown === 'thinking' ? null : 'thinking')}
         >
@@ -75,11 +81,13 @@ export function RoastCards({ analytics, activeDrilldown, setActiveDrilldown }: {
             <span className={css.roastFooterLeft}>推导占比</span>
             <span className={css.roastAction}>{activeDrilldown === 'thinking' ? '收起明细' : '展开明细'}</span>
           </div>
-        </div>
+        </button>
 
         {/* 卡片 4: 省流小能手 / 缓存待提升 */}
-        <div
+        <button
+          type="button"
           className={`${css.roastItem} ${activeDrilldown === 'cache' ? css.roastItemActive : ''}`}
+          aria-expanded={activeDrilldown === 'cache'}
           data-tone={(analytics?.cacheHitPct ?? 0) >= 40 ? 'ok' : 'warn'}
           onClick={() => setActiveDrilldown(activeDrilldown === 'cache' ? null : 'cache')}
         >
@@ -102,11 +110,13 @@ export function RoastCards({ analytics, activeDrilldown, setActiveDrilldown }: {
             <span className={css.roastFooterLeft}>缓存效率</span>
             <span className={css.roastAction}>{activeDrilldown === 'cache' ? '收起明细' : '展开明细'}</span>
           </div>
-        </div>
+        </button>
 
         {/* 卡片 5: 终端耗时狂 / 秒级放行 */}
-        <div
+        <button
+          type="button"
           className={`${css.roastItem} ${activeDrilldown === 'tool' ? css.roastItemActive : ''}`}
+          aria-expanded={activeDrilldown === 'tool'}
           data-tone={(analytics?.toolTimePct ?? 0) >= 30 ? 'warn' : 'info'}
           onClick={() => setActiveDrilldown(activeDrilldown === 'tool' ? null : 'tool')}
         >
@@ -129,11 +139,13 @@ export function RoastCards({ analytics, activeDrilldown, setActiveDrilldown }: {
             <span className={css.roastFooterLeft}>本地耗时</span>
             <span className={css.roastAction}>{activeDrilldown === 'tool' ? '收起明细' : '展开明细'}</span>
           </div>
-        </div>
+        </button>
 
         {/* 卡片 6: 运行可靠度 */}
-        <div
+        <button
+          type="button"
           className={`${css.roastItem} ${activeDrilldown === 'reliability' ? css.roastItemActive : ''}`}
+          aria-expanded={activeDrilldown === 'reliability'}
           data-tone={(analytics?.totalErrors ?? 0) > 0 ? 'err' : 'ok'}
           onClick={() => setActiveDrilldown(activeDrilldown === 'reliability' ? null : 'reliability')}
         >
@@ -156,7 +168,7 @@ export function RoastCards({ analytics, activeDrilldown, setActiveDrilldown }: {
             <span className={css.roastFooterLeft}>异常检测</span>
             <span className={css.roastAction}>{activeDrilldown === 'reliability' ? '收起明细' : '展开明细'}</span>
           </div>
-        </div>
+        </button>
       </div>
     </>
   )

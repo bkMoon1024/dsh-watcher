@@ -164,6 +164,11 @@
   font-weight: 600;
 }
 
+.collapseBtn:focus-visible {
+  outline: var(--dsw-focus-ring-width, 2px) solid var(--ui-focus-ring);
+  outline-offset: 1px;
+}
+
 .collapseBtn {
   display: inline-flex;
   align-items: center;
@@ -456,9 +461,13 @@
 
 .roastItem {
   position: relative;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
   background: var(--ui-surface);
   border: 1px solid var(--ui-line);
-  border-radius: 12px;
+  border-radius: var(--ui-radius-card);
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
@@ -466,10 +475,28 @@
   gap: 7px;
   min-height: 118px;
   cursor: pointer;
-  transition: border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+  transition:
+    border-color var(--ui-motion-fast) var(--ui-ease),
+    transform var(--ui-motion-fast) var(--ui-ease),
+    box-shadow var(--ui-motion-fast) var(--ui-ease);
   user-select: none;
   box-sizing: border-box;
   --tone: var(--ui-accent);
+}
+
+.roastItem:focus-visible {
+  outline: var(--dsw-focus-ring-width, 2px) solid var(--ui-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roastItem {
+    transition: none;
+  }
+
+  .roastItem:hover {
+    transform: none;
+  }
 }
 
 .roastItem[data-tone='ok'] { --tone: var(--ui-state-success); }
@@ -1319,6 +1346,11 @@
   font-weight: 600;
 }
 
+.sessionItemHead:focus-visible {
+  outline: var(--dsw-focus-ring-width, 2px) solid var(--ui-focus-ring);
+  outline-offset: -2px;
+}
+
 .sessionItemHead {
   width: 100%;
   border: 0;
@@ -1930,6 +1962,11 @@
   font-size: 12px;
   background: var(--ui-surface);
   overflow: hidden;
+}
+
+.settingsSummary:focus-visible {
+  outline: var(--dsw-focus-ring-width, 2px) solid var(--ui-focus-ring);
+  outline-offset: -2px;
 }
 
 .settingsSummary {
