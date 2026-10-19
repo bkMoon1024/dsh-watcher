@@ -1,410 +1,31 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
-import { createPortal } from 'react-dom'
-// Untyped local ESM helpers: single .mjs source kept for node tests.
+import { useEffect, useMemo, useRef, useState } from 'react'
 // @ts-ignore TS7016: no declarations for the local .mjs module
-import { alertsOf, DEFAULT_LIMITS, limitsOf, scanSessions } from '../insights/presentation.mjs'
+import { scanSessions } from '../insights/presentation.mjs'
 // @ts-ignore TS7016: no declarations for the local .mjs module
-import { estimateFromInsights, estimateUsageRows, formatEstimate, formatEstimateNote, estimateDisclaimer, mergePricing, defaultPricing, readStoredOverride, persistPricingEditor, clearPricingEditor, effectivePricingText } from '../insights/pricing.mjs'
+import { clearPricingEditor, effectivePricingText, estimateDisclaimer, estimateUsageRows, formatEstimate, formatEstimateNote, persistPricingEditor } from '../insights/pricing.mjs'
 // @ts-ignore TS7016: no declarations for the local .mjs module
-import { costCopy, detectLocale } from '../insights/i18n.mjs'
-import type { InsightsView } from '../insights/projection.ts'
+import { costCopy } from '../insights/i18n.mjs'
+import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
 import css from './Insights.module.css'
-import { TimingPanel } from './TimingPanel.tsx'
+import tokensCss from './ui/tokens.module.css'
+import { SegmentedToggle } from './ui/SegmentedToggle.tsx'
+import {
+  ChartTooltip,
+  PALETTE,
+  STORAGE,
+  WEEKDAYS,
+  computeStackedLineChart,
+  dayKey,
+  dayLabel,
+  fmtCompact,
+  routeLabel,
+  useLimits,
+  usePricingTable,
+  useUiLocale,
+  type ChartAnchor,
+} from './insights-shared.tsx'
 
-type Limits = { silenceSeconds: number; reasoningSeconds: number }
-const STORAGE = 'dsh-watcher:insights-display:v1'
-
-function routeLabel(route?: { provider?: string; model?: string }): string {
-  return `${route?.provider || '未标注提供方'}/${route?.model || '未标注模型'}`
-}
-
-function modelKeyOf(m: any): string {
-  return `${m?.provider ?? ''}/${m?.model ?? ''}/${m?.effort ?? ''}`
-}
-
-function readLimits(): Limits {
-  try {
-    return limitsOf(JSON.parse(localStorage.getItem(STORAGE) ?? '{}'))
-  } catch {
-    return { ...DEFAULT_LIMITS }
-  }
-}
-
-function useLimits() {
-  const [limits, setLimits] = useState(readLimits)
-  useEffect(() => {
-    const update = () => setLimits(readLimits())
-    window.addEventListener('watcher-insights-settings', update)
-    return () => window.removeEventListener('watcher-insights-settings', update)
-  }, [])
-  return limits
-}
-
-function useUiLocale() {
-  const [locale, setLocale] = useState(detectLocale)
-  useEffect(() => { setLocale(detectLocale()) }, [])
-  return locale
-}
-
-function usePricingTable() {
-  const [table, setTable] = useState(() => mergePricing(defaultPricing(), readStoredOverride(globalThis.localStorage)))
-  useEffect(() => {
-    const update = () => setTable(mergePricing(defaultPricing(), readStoredOverride(globalThis.localStorage)))
-    window.addEventListener('watcher-pricing-settings', update)
-    return () => window.removeEventListener('watcher-pricing-settings', update)
-  }, [])
-  return table
-}
-
-const numberFormat = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 })
-const fmt = (n: number) => numberFormat.format(n)
-
-const fmtCompact = (n: number) => {
-  if (!Number.isFinite(n) || n <= 0) return '0'
-  if (n >= 1e8) return `${(n / 1e8).toFixed(1)} 亿`
-  if (n >= 1e4) return `${(n / 1e4).toFixed(1)} 万`
-  return fmt(n)
-}
-
-const dayKey = (ms: number) => {
-  const d = new Date(ms)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-const dayLabel = (key: string) => {
-  const [, m, d] = key.split('-')
-  return `${Number(m)}/${Number(d)}`
-}
-
-const PALETTE = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ec4899', '#6366f1']
-const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-
-function computeStackedLineChart(
-  daySeries: Array<{ key: string; label: string; total: number; weekday: string; sessions: number; segments: any[]; isToday?: boolean; isYesterday?: boolean }>,
-  modelsList: Array<{ model: string; color: string; tokens: number; pct: number }>,
-  width = 560,
-  height = 160,
-) {
-  const padding = { top: 20, right: 20, bottom: 28, left: 45 }
-  const plotW = Math.max(10, width - padding.left - padding.right)
-  const plotH = Math.max(10, height - padding.top - padding.bottom)
-  const bottomY = padding.top + plotH
-
-  const maxVal = Math.max(1, ...daySeries.map(d => d.total))
-  const yMax = Math.ceil(maxVal * 1.15)
-  const yCoord = (val: number) => bottomY - (val / yMax) * plotH
-
-  // 按图例顺序作为堆叠图层：基底为主要模型，逐层向上堆叠
-  const effectiveModels = modelsList.length > 0
-    ? modelsList
-    : [{ model: '全部模型', color: '#5686fe', tokens: maxVal, pct: 100 }]
-
-  const stackLevels = daySeries.map((d, dayIdx) => {
-    const x = padding.left + (dayIdx / Math.max(1, daySeries.length - 1)) * plotW
-    let acc = 0
-    const modelStacks = effectiveModels.map(m => {
-      const seg = d.segments.find((s: any) => s.model === m.model)
-      const tokens = seg ? seg.tokens : 0
-      const bTokens = acc
-      acc += tokens
-      const tTokens = acc
-      return {
-        model: m.model,
-        color: m.color,
-        tokens,
-        bottomY: yCoord(bTokens),
-        topY: yCoord(tTokens),
-      }
-    })
-    return {
-      index: dayIdx,
-      x,
-      total: d.total,
-      data: d,
-      modelStacks,
-    }
-  })
-
-  const buildSpline = (pts: Array<{ x: number; y: number }>) => {
-    if (pts.length <= 1) return pts.length === 1 ? `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}` : ''
-    let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`
-    for (let i = 0; i < pts.length - 1; i++) {
-      const p0 = pts[Math.max(0, i - 1)]
-      const p1 = pts[i]
-      const p2 = pts[i + 1]
-      const p3 = pts[Math.min(pts.length - 1, i + 2)]
-      const cp1x = p1.x + (p2.x - p0.x) / 6
-      const cp1y = Math.min(bottomY, Math.max(padding.top, p1.y + (p2.y - p0.y) / 6))
-      const cp2x = p2.x - (p3.x - p1.x) / 6
-      const cp2y = Math.min(bottomY, Math.max(padding.top, p2.y - (p3.y - p1.y) / 6))
-      d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
-    }
-    return d
-  }
-
-  const buildSegmentSpline = (pts: Array<{ x: number; y: number }>) => {
-    let d = ''
-    for (let i = 0; i < pts.length - 1; i++) {
-      const p0 = pts[Math.max(0, i - 1)]
-      const p1 = pts[i]
-      const p2 = pts[i + 1]
-      const p3 = pts[Math.min(pts.length - 1, i + 2)]
-      const cp1x = p1.x + (p2.x - p0.x) / 6
-      const cp1y = Math.min(bottomY, Math.max(padding.top, p1.y + (p2.y - p0.y) / 6))
-      const cp2x = p2.x - (p3.x - p1.x) / 6
-      const cp2y = Math.min(bottomY, Math.max(padding.top, p2.y - (p3.y - p1.y) / 6))
-      d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
-    }
-    return d
-  }
-
-  // 为每个模型生成独立堆叠面积层与边界折线
-  const layers = effectiveModels.map((m, mIdx) => {
-    const topPts = stackLevels.map(sl => ({ x: sl.x, y: sl.modelStacks[mIdx].topY }))
-    const bottomPts = stackLevels.map(sl => ({ x: sl.x, y: sl.modelStacks[mIdx].bottomY }))
-
-    const lineD = buildSpline(topPts)
-    const revBottom = [...bottomPts].reverse()
-    const bottomSeg = buildSegmentSpline(revBottom)
-    const areaD = `${lineD} L ${revBottom[0].x.toFixed(1)} ${revBottom[0].y.toFixed(1)}${bottomSeg} Z`
-
-    return {
-      model: m.model,
-      color: m.color,
-      lineD,
-      areaD,
-      topPts,
-    }
-  })
-
-  return { layers, stackLevels, yMax, bottomY, padding, plotW, plotH }
-}
-
-/**
- * Viewport-space anchor for a chart hover card: a live element plus the
- * relative point inside it the card should point at. The rectangle is re-read
- * on every placement, so the card keeps following its bar/cell while a nested
- * settings pane scrolls.
- */
-type ChartAnchor = {
-  el: Element
-  ratioX: number
-  ratioY: number
-  /** Preferred side of the anchor point; placement flips it when that side does not fit. */
-  side: 'above' | 'below'
-}
-
-const TOOLTIP_MARGIN = 8
-const TOOLTIP_GAP = 12
-
-/**
- * Hover card for the charts. The panels clip their content, and a card centred
- * on a late bar is wider than the space left of the panel edge, so the card is
- * portalled to the document body and placed in viewport coordinates — the same
- * approach as the UI primitives' HoverCard. Placement is written straight to
- * the node: it runs before paint and again on scroll/resize, and it clamps to
- * the viewport so no side of the card is ever cut off.
- */
-function ChartTooltip({ anchor, children }: { anchor: ChartAnchor | null; children: ReactNode }) {
-  const cardRef = useRef<HTMLDivElement | null>(null)
-  useLayoutEffect(() => {
-    const card = cardRef.current
-    if (card === null || anchor === null) return
-    const place = () => {
-      const rect = anchor.el.getBoundingClientRect()
-      const width = card.offsetWidth
-      const height = card.offsetHeight
-      const viewportWidth = document.documentElement.clientWidth
-      const viewportHeight = document.documentElement.clientHeight
-      const pointX = rect.left + rect.width * anchor.ratioX
-      const pointY = rect.top + rect.height * anchor.ratioY
-      const left = Math.min(
-        Math.max(pointX - width / 2, TOOLTIP_MARGIN),
-        Math.max(TOOLTIP_MARGIN, viewportWidth - width - TOOLTIP_MARGIN),
-      )
-      const above = pointY - height - TOOLTIP_GAP
-      const below = pointY + TOOLTIP_GAP
-      const fitsAbove = above >= TOOLTIP_MARGIN
-      const fitsBelow = below + height <= viewportHeight - TOOLTIP_MARGIN
-      const preferred = anchor.side === 'above' ? above : below
-      const flipped = anchor.side === 'above' ? below : above
-      const chosen = anchor.side === 'above'
-        ? (fitsAbove ? preferred : flipped)
-        : (fitsBelow ? preferred : flipped)
-      const top = Math.min(
-        Math.max(chosen, TOOLTIP_MARGIN),
-        Math.max(TOOLTIP_MARGIN, viewportHeight - height - TOOLTIP_MARGIN),
-      )
-      card.style.left = `${Math.round(left)}px`
-      card.style.top = `${Math.round(top)}px`
-      card.style.visibility = 'visible'
-    }
-    place()
-    window.addEventListener('scroll', place, true)
-    window.addEventListener('resize', place)
-    return () => {
-      window.removeEventListener('scroll', place, true)
-      window.removeEventListener('resize', place)
-    }
-  }, [anchor])
-  if (anchor === null) return null
-  return createPortal(
-    <div ref={cardRef} className={`${css.chartTooltipBox} ${css.chartTooltipPortal}`}>
-      {children}
-    </div>,
-    document.body,
-  )
-}
-
-function effortLabel(effort: string | null | undefined): string {
-  if (!effort) return ''
-  const map: Record<string, string> = { high: '高', medium: '中', low: '低' }
-  return map[effort.toLowerCase()] ?? effort
-}
-
-type Evidence = { turn: number; steps: number[]; seqs: number[] }
-
-export function SessionInsights({ value, now, running, waiting, onEvidence, tokensPerSecond }: {
-  value: InsightsView | undefined; now: number; running: boolean; waiting: boolean; onEvidence: (e: Evidence) => void; tokensPerSecond?: number | null
-}) {
-  const limits = useLimits()
-  const pricing = usePricingTable()
-  const locale = useUiLocale()
-  const copy = costCopy(locale)
-  const [scope, setScope] = useState<'turn' | 'session'>('turn')
-  const [modelFilter, setModelFilter] = useState<'all' | string>('all')
-  const [collapsed, setCollapsed] = useState(() => {
-    try { return globalThis.localStorage?.getItem('dsh-watcher:hud-collapsed') === '1' } catch { return false }
-  })
-  const toggleCollapsed = () => {
-    const next = !collapsed
-    try { globalThis.localStorage?.setItem('dsh-watcher:hud-collapsed', next ? '1' : '0') } catch {}
-    setCollapsed(next)
-  }
-  // Hooks stay above the early return so hook order never depends on load state.
-  const selectedModel = scope === 'session' && modelFilter !== 'all' && value
-    ? value.models.find(m => modelKeyOf(m) === modelFilter)
-    : undefined
-  const stats = value && scope === 'turn' && value.turn
-    ? value.turn.stats
-    : (selectedModel ?? value?.totals)
-  // "本轮" must never label whole-session totals: before the first turn the
-  // fallback below is session-wide, and the heading has to say so.
-  const turnMissing = scope === 'turn' && !value?.turn
-  const alerts = useMemo(() => alertsOf(value ?? null, now, { running, waiting, limits }), [value, now, running, waiting, limits])
-  const currentRoute = value?.turn?.route ?? (value?.models && value.models.length > 0 ? value.models[0] : undefined)
-  const estimate = useMemo(
-    () => (value && stats ? estimateFromInsights(value, stats, scope, selectedModel, currentRoute, pricing) : null),
-    [value, stats, scope, selectedModel, currentRoute, pricing],
-  )
-  if (!value || !stats || !estimate) return null
-
-  const isMultiModel = (value.models?.length ?? 0) > 1
-  const totalIn = (stats.input ?? 0) + (stats.cacheRead ?? 0)
-  const cachePct = totalIn > 0 ? Math.round(((stats.cacheRead ?? 0) / totalIn) * 100) : 0
-  const costText = formatEstimate(estimate, locale)
-  const costNote = formatEstimateNote(estimate, locale)
-  const costTitle = costNote ? `${copy.estimatedCost}: ${costText} · ${costNote}` : `${copy.estimatedCost}: ${costText}`
-
-  return (
-    <section className={css.hudBox} aria-label="耗时分布与运行健康度" data-collapsed={collapsed ? '' : undefined}>
-      <div className={css.hudTop}>
-        <div className={css.hudHeadRow}>
-          <div className={css.hudTopLeft}>
-            <span className={css.hudHeading}>
-              {scope === 'turn'
-                ? (turnMissing ? '全会话' : '本轮')
-                : selectedModel
-                  ? `模型: ${routeLabel(selectedModel)}`
-                  : '全会话'}
-            </span>
-            {turnMissing
-              ? <span className={css.hudHeadingNote} title="本轮尚未开始，以下为全会话累计数据">本轮未开始 · 已显示全会话</span>
-              : null}
-          </div>
-          <div className={css.hudTopRight}>
-            <div className={css.scopeGroup} role="group" aria-label="统计范围切换">
-              <button type="button" className={css.scopeBtn} data-active={scope === 'turn' ? '' : undefined}
-                onClick={() => { setScope('turn'); setModelFilter('all') }}>本轮</button>
-              <button type="button" className={css.scopeBtn} data-active={scope === 'session' ? '' : undefined}
-                onClick={() => setScope('session')}>全会话</button>
-            </div>
-            <button
-              type="button"
-              className={css.collapseBtn}
-              aria-expanded={!collapsed}
-              aria-label={collapsed ? '展开耗时统计' : '收起耗时统计'}
-              title={collapsed ? '展开耗时统计' : '收起耗时统计'}
-              onClick={toggleCollapsed}
-            >
-              <span className={css.collapseChevron} aria-hidden="true">▾</span>
-            </button>
-          </div>
-        </div>
-        <div className={css.hudStatRow}>
-          {scope === 'turn' && currentRoute?.model ? (
-            <span className={css.currentModelTag} title={routeLabel(currentRoute)}>
-              <strong className={css.modelTagText}>{routeLabel(currentRoute)}</strong>
-              {currentRoute.effort ? (
-                <span className={css.effortTag}>思考: {effortLabel(currentRoute.effort)}</span>
-              ) : null}
-            </span>
-          ) : null}
-          <span className={css.contextTag}>
-            {scope === 'turn' ? '上下文' : '累计输入'} <strong>{fmt(stats.input ?? 0)}</strong> Token
-          </span>
-          <span className={css.tokenStat}>
-            <strong>{fmt(stats.tokens ?? 0)}</strong> Token · {cachePct}% 命中
-          </span>
-          <span className={css.costStat} title={costTitle} aria-label={`${copy.estimatedCost}: ${costText}`}>
-            {copy.estimatedCost} <strong>{costText}</strong>
-          </span>
-        </div>
-      </div>
-      {!collapsed && scope === 'session' && isMultiModel ? (
-        <div className={css.modelTabBar} role="tablist" aria-label="多模型切换">
-          <button type="button" className={css.modelTabBtn} data-active={modelFilter === 'all' ? '' : undefined}
-            onClick={() => setModelFilter('all')}>全部模型汇总 ({value.models.length})</button>
-          {value.models.map((m: any) => {
-            const key = modelKeyOf(m)
-            return (
-              <button type="button" key={key} className={css.modelTabBtn} data-active={modelFilter === key ? '' : undefined}
-                onClick={() => setModelFilter(key)} title={routeLabel(m)}>{routeLabel(m)} ({m.calls}次)</button>
-            )
-          })}
-        </div>
-      ) : null}
-      {collapsed ? null : (
-      <div className={css.hudBody}>
-        <TimingPanel stats={stats} scope={scope} tokensPerSecond={scope === 'turn' ? tokensPerSecond : undefined} />
-        {alerts.length > 0 ? (
-          <div className={css.alertSection} aria-live="polite">
-            {alerts.map((a: Evidence & { id: string; title: string; detail: string; kind?: string }) => {
-              const isRepeat = a.kind === 'repeated-failure' || a.id.startsWith('repeat')
-              const isSilence = a.id === 'silence'
-              const isReason = a.id === 'reasoning-span'
-              const tag = isRepeat ? '连续报错' : isSilence ? '网络停顿' : isReason ? '思考超时' : '异常'
-              return (
-                <div key={a.id} className={`${css.alertCard} ${isRepeat ? css.alertCardDanger : css.alertCardWarn}`}>
-                  <div className={css.alertLeft}>
-                    <span className={`${css.alertTag} ${isRepeat ? css.tagDanger : css.tagWarn}`}>{tag}</span>
-                    <div className={css.alertTexts}>
-                      <strong className={css.alertMainText}>{a.title}</strong>
-                      <span className={css.alertSubText}>{a.detail}</span>
-                    </div>
-                  </div>
-                  <button type="button" className={css.alertActionBtn} onClick={() => onEvidence(a)}>定位现场</button>
-                </div>
-              )
-            })}
-          </div>
-        ) : null}
-      </div>
-      )}
-    </section>
-  )
-}
+/** Settings-page surface: usage scan, charts, heatmap and pricing overrides. */
 
 export function InsightsSettings(props: { remote?: any }) {
   const limits = useLimits()
@@ -911,42 +532,32 @@ export function InsightsSettings(props: { remote?: any }) {
   const heroCostTitle = [estimateDisclaimer(locale), heroCostNote].filter(Boolean).join(' · ')
 
   return (
-    <div className={css.settingsContainer} data-wi-ui="v2">
+    <div className={`${tokensCss.tokens} ${tokensCss.series} ${css.settingsContainer}`} data-wi-ui="v2">
       <div className={css.cockpitHeader}>
         <div className={css.cockpitTitleArea}>
           <h2 className={css.cockpitMainTitle}>用量统计与模型洞察</h2>
           <p className={css.cockpitSubTitle}>只读汇总本地已缓存的对话。按活动日期归组，无额外后台开销。</p>
         </div>
         <div className={css.headerRightControls}>
-          <div className={css.rangeSwitchGroup}>
-            <button
-              type="button"
-              className={css.rangeBtn}
-              data-active={range === '7' ? '' : undefined}
-              onClick={() => { userPickedRange.current = true; setRange('7'); setCustomViewMode(null); }}
-            >
-              近 7 天
-            </button>
-            <button
-              type="button"
-              className={css.rangeBtn}
-              data-active={range === '30' ? '' : undefined}
-              onClick={() => { userPickedRange.current = true; setRange('30'); setCustomViewMode(null); }}
-            >
-              近 30 天
-            </button>
-            <button
-              type="button"
-              className={css.rangeBtn}
-              data-active={range === '180' ? '' : undefined}
-              onClick={() => { userPickedRange.current = true; setRange('180'); setCustomViewMode(null); }}
-            >
-              近 6 个月
-            </button>
-          </div>
-          <button type="button" className={css.settingsScanBtn} onClick={refresh} disabled={loading || !props.remote} title={!props.remote ? '会话服务不可用，暂时无法刷新' : '重新扫描本地会话统计'}>
+          <SegmentedToggle
+            label="统计时间范围"
+            value={range}
+            onChange={next => { userPickedRange.current = true; setRange(next); setCustomViewMode(null) }}
+            options={[
+              { value: '7', label: '近 7 天' },
+              { value: '30', label: '近 30 天' },
+              { value: '180', label: '近 6 个月' },
+            ]}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={refresh}
+            disabled={loading || !props.remote}
+            title={!props.remote ? '会话服务不可用，暂时无法刷新' : '重新扫描本地会话统计'}
+          >
             {loading ? '正在刷新' : '刷新'}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -1150,13 +761,7 @@ export function InsightsSettings(props: { remote?: any }) {
                 {activeDrilldown === 'reliability' && '按报错与重试次数降序排查（优先定位最高频故障会话）'}
               </span>
             </div>
-            <button
-              type="button"
-              className={css.drilldownCloseBtn}
-              onClick={() => setActiveDrilldown(null)}
-            >
-              收起
-            </button>
+            <Button variant="ghost" size="sm" onClick={() => setActiveDrilldown(null)}>收起</Button>
           </div>
 
           {/* 1. 速度 / 延迟下钻：每个模型唯一，严格升序/降序 */}
@@ -1167,7 +772,7 @@ export function InsightsSettings(props: { remote?: any }) {
                 const minMs = analytics.speedList[0].firstMs / analytics.speedList[0].firstSamples
                 // 最快的模型得分为 100%，后续依次递减，条长完美单调递减
                 const score = Math.max(10, Math.min(100, Math.round((minMs / avgMs) * 100)))
-                const color = avgMs < 1000 ? '#10b981' : avgMs < 3000 ? '#3b82f6' : '#f59e0b'
+                const color = avgMs < 1000 ? 'var(--ui-state-success)' : avgMs < 3000 ? 'var(--ui-accent)' : 'var(--ui-state-warn)'
                 return (
                   <div key={m.model} className={css.rankItem}>
                     <div className={css.rankItemTop}>
@@ -1202,7 +807,7 @@ export function InsightsSettings(props: { remote?: any }) {
                 const maxMs = analytics.latencyList[0].firstMs / analytics.latencyList[0].firstSamples
                 // 最慢的模型瓶颈权重 100%，后续依次递减，条长完美单调递减
                 const bottleneckPct = Math.max(10, Math.min(100, Math.round((avgMs / maxMs) * 100)))
-                const color = avgMs > 5000 ? '#ef4444' : avgMs > 2000 ? '#f59e0b' : '#3b82f6'
+                const color = avgMs > 5000 ? 'var(--ui-state-error)' : avgMs > 2000 ? 'var(--ui-state-warn)' : 'var(--ui-accent)'
                 return (
                   <div key={m.model} className={css.rankItem}>
                     <div className={css.rankItemTop}>
@@ -1243,7 +848,7 @@ export function InsightsSettings(props: { remote?: any }) {
                         <span className={`${css.rankBadge} ${idx === 0 ? css.rankBadgeGold : ''}`}>#{idx + 1}</span>
                         <span className={css.rankName} title={m.model}>{m.model}</span>
                       </div>
-                      <span className={css.rankValMain} style={{ color: '#8b5cf6' }}>
+                      <span className={css.rankValMain} style={{ color: 'var(--ui-series-think)' }}>
                         思考占比 {thinkPct}%
                       </span>
                     </div>
@@ -1277,7 +882,7 @@ export function InsightsSettings(props: { remote?: any }) {
                         <span className={`${css.rankBadge} ${idx === 0 ? css.rankBadgeGold : ''}`}>#{idx + 1}</span>
                         <span className={css.rankName} title={m.model}>{m.model}</span>
                       </div>
-                      <span className={css.rankValMain} style={{ color: '#10b981' }}>
+                      <span className={css.rankValMain} style={{ color: 'var(--ui-state-success)' }}>
                         命中率 {hitPct}%
                       </span>
                     </div>
@@ -1308,8 +913,8 @@ export function InsightsSettings(props: { remote?: any }) {
                   <div className={css.toolSliceFile} style={{ width: `${analytics.filePct}%` }} />
                 </div>
                 <div className={css.toolCompoundLegend}>
-                  <span><i className={css.dlDot} style={{ background: 'var(--dsw-static-green-500, #10b981)' }} /> 终端命令 (Bash): <strong>{Math.round(analytics.totalBashMs / 1000)}秒 ({analytics.bashPct}%)</strong></span>
-                  <span><i className={css.dlDot} style={{ background: 'var(--dsw-static-blue-500, #0ea5e9)' }} /> 文件与通用读写: <strong>{Math.round(analytics.totalFileMs / 1000)}秒 ({analytics.filePct}%)</strong></span>
+                  <span><i className={css.dlDot} style={{ background: 'var(--ui-series-bash)' }} /> 终端命令 (Bash): <strong>{Math.round(analytics.totalBashMs / 1000)}秒 ({analytics.bashPct}%)</strong></span>
+                  <span><i className={css.dlDot} style={{ background: 'var(--ui-series-file)' }} /> 文件与通用读写: <strong>{Math.round(analytics.totalFileMs / 1000)}秒 ({analytics.filePct}%)</strong></span>
                 </div>
               </div>
 
@@ -1317,7 +922,7 @@ export function InsightsSettings(props: { remote?: any }) {
               <div className={css.toolGridCards}>
                 <div className={css.toolMiniCard}>
                   <div className={css.toolMiniTitle}>
-                    <i className={css.dlDot} style={{ background: 'var(--dsw-static-green-500, #10b981)' }} />
+                    <i className={css.dlDot} style={{ background: 'var(--ui-series-bash)' }} />
                     <span>终端 Bash 命令 (测试/构建/脚本)</span>
                   </div>
                   <div className={css.toolMiniNum}>{Math.round(analytics.totalBashMs / 1000)} 秒</div>
@@ -1328,7 +933,7 @@ export function InsightsSettings(props: { remote?: any }) {
 
                 <div className={css.toolMiniCard}>
                 <div className={css.toolMiniTitle}>
-                  <i className={css.dlDot} style={{ background: 'var(--dsw-static-blue-500, #0ea5e9)' }} />
+                  <i className={css.dlDot} style={{ background: 'var(--ui-series-file)' }} />
                   <span>文件操作与其他工具 (读写/检索)</span>
                 </div>
                   <div className={css.toolMiniNum}>{Math.round(analytics.totalFileMs / 1000)} 秒</div>
@@ -1488,26 +1093,15 @@ export function InsightsSettings(props: { remote?: any }) {
                 {activeViewMode === 'bar' ? '柱状堆叠图 · 分色对应模型' : '平滑折线图 · 活动趋势'}
               </span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div className={css.viewSwitchGroup} role="group" aria-label="图表类型切换">
-                <button
-                  type="button"
-                  className={css.viewSwitchBtn}
-                  data-active={activeViewMode === 'bar' ? '' : undefined}
-                  onClick={() => setCustomViewMode('bar')}
-                >
-                  柱状图
-                </button>
-                <button
-                  type="button"
-                  className={css.viewSwitchBtn}
-                  data-active={activeViewMode === 'line' ? '' : undefined}
-                  onClick={() => setCustomViewMode('line')}
-                >
-                  折线图
-                </button>
-              </div>
-            </div>
+            <SegmentedToggle
+              label="图表类型切换"
+              value={activeViewMode}
+              onChange={setCustomViewMode}
+              options={[
+                { value: 'bar', label: '柱状图' },
+                { value: 'line', label: '折线图' },
+              ]}
+            />
           </div>
 
           {/* 图例 (Legend)：展示当前区间内活跃模型及其颜色与消耗量 */}
@@ -1735,7 +1329,7 @@ export function InsightsSettings(props: { remote?: any }) {
                               y={lineData.bottomY + 16}
                               textAnchor="middle"
                               className={css.lineAxisText}
-                              fill={sl.data.isToday ? 'var(--dsw-static-deepseek-450, #5686fe)' : undefined}
+                              fill={sl.data.isToday ? 'var(--ui-accent)' : undefined}
                               fontWeight={sl.data.isToday ? '700' : undefined}
                             >
                               {text}
@@ -1807,7 +1401,7 @@ export function InsightsSettings(props: { remote?: any }) {
                                     cy={ms.topY}
                                     r="3.5"
                                     fill={ms.color}
-                                    stroke="#ffffff"
+                                    stroke="var(--ui-surface)"
                                     strokeWidth="1.5"
                                   />
                                 </g>
@@ -1983,32 +1577,16 @@ export function InsightsSettings(props: { remote?: any }) {
               {sessionSort === 'errors' && '按报错与重试次数降序排查'}
             </span>
           </div>
-          <div className={css.tableSortGroup} role="group" aria-label="对话账单排序切换">
-            <button
-              type="button"
-              className={css.sortBtn}
-              data-active={sessionSort === 'tokens' ? '' : undefined}
-              onClick={() => setSessionSort('tokens')}
-            >
-              Token 消耗 ↓
-            </button>
-            <button
-              type="button"
-              className={css.sortBtn}
-              data-active={sessionSort === 'time' ? '' : undefined}
-              onClick={() => setSessionSort('time')}
-            >
-              总耗时 ↓
-            </button>
-            <button
-              type="button"
-              className={css.sortBtn}
-              data-active={sessionSort === 'errors' ? '' : undefined}
-              onClick={() => setSessionSort('errors')}
-            >
-              故障数 ↓
-            </button>
-          </div>
+          <SegmentedToggle
+            label="对话账单排序切换"
+            value={sessionSort}
+            onChange={setSessionSort}
+            options={[
+              { value: 'tokens', label: 'Token 消耗 ↓' },
+              { value: 'time', label: '总耗时 ↓' },
+              { value: 'errors', label: '故障数 ↓' },
+            ]}
+          />
         </div>
 
         {sessions && sessions.rows.length > 0 ? (
@@ -2087,9 +1665,9 @@ export function InsightsSettings(props: { remote?: any }) {
           />
           {overrideError ? <p className={css.priceOverrideError}>{overrideError}</p> : null}
           <div className={css.priceOverrideActions}>
-            <button
-              type="button"
-              className={css.settingsMiniSaveBtn}
+            <Button
+              variant="primary"
+              size="sm"
               onClick={() => {
                 try {
                   setOverrideText(persistPricingEditor(overrideText, globalThis.localStorage))
@@ -2103,10 +1681,10 @@ export function InsightsSettings(props: { remote?: any }) {
               }}
             >
               {overrideSaved ? copy.priceOverrideSaved : copy.priceOverrideSave}
-            </button>
-            <button
-              type="button"
-              className={css.settingsResetBtn}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 setOverrideText(clearPricingEditor(globalThis.localStorage))
                 window.dispatchEvent(new CustomEvent('watcher-pricing-settings'))
@@ -2114,7 +1692,7 @@ export function InsightsSettings(props: { remote?: any }) {
               }}
             >
               {copy.priceOverrideReset}
-            </button>
+            </Button>
           </div>
         </div>
       </details>
@@ -2124,17 +1702,17 @@ export function InsightsSettings(props: { remote?: any }) {
         <div className={css.settingsDrawerContent}>
           <label className={css.settingInlineItem}>
             <span>等多久没字算卡顿:</span>
-            <input type="number" min={5} max={300} className={css.settingsMiniInput} value={silence}
+            <Input type="number" min={5} max={300} value={silence} className={css.settingsMiniInput}
               onChange={e => setSilence(Number(e.target.value))} />
             <span>秒</span>
           </label>
           <label className={css.settingInlineItem}>
             <span>单次推导思考超时:</span>
-            <input type="number" min={10} max={600} className={css.settingsMiniInput} value={reasoning}
+            <Input type="number" min={10} max={600} value={reasoning} className={css.settingsMiniInput}
               onChange={e => setReasoning(Number(e.target.value))} />
             <span>秒</span>
           </label>
-          <button type="button" className={css.settingsMiniSaveBtn} onClick={save}>{saved ? '已保存 ✓' : '保存'}</button>
+          <Button variant="primary" size="sm" onClick={save}>{saved ? '已保存 ✓' : '保存'}</Button>
         </div>
       </details>
     </div>

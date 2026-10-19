@@ -1,0 +1,50 @@
+/* Visual recipe copied from the host's SegmentedControl so the plugin's view
+ * switches read as native controls: a sunken track, a raised indicator over the
+ * selected option, and the shared focus ring. */
+.group {
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--ui-radius-row);
+  background: var(--ui-hover);
+}
+
+.option {
+  min-width: 44px;
+  height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: calc(var(--ui-radius-row) - 2px);
+  background: transparent;
+  color: var(--ui-text-secondary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 24px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--ui-motion-fast) var(--ui-ease),
+    color var(--ui-motion-fast) var(--ui-ease);
+}
+
+.option:hover:not([data-active]):not(:disabled) {
+  color: var(--ui-text);
+}
+
+.option[data-active] {
+  background: var(--ui-surface-sunken);
+  box-shadow: var(--ui-elevation-soft);
+  color: var(--ui-text);
+}
+
+.option:focus-visible {
+  outline: var(--dsw-focus-ring-width, 2px) solid var(--ui-focus-ring);
+  outline-offset: 1px;
+}
+
+.option:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}

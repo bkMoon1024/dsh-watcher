@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import type { InsightsView } from '../insights/projection.ts'
 import css from './TimingPanel.module.css'
+import tokensCss from './ui/tokens.module.css'
 
 const duration = (ms: number) => {
   if (ms < 1000) return `${Math.round(ms)} ms`
@@ -114,7 +115,7 @@ export function TimingPanel({
   }
 
   return (
-    <div className={css.panelBox}>
+    <div className={`${tokensCss.tokens} ${tokensCss.series} ${css.panelBox}`}>
       {/* 顶行：标题 + 实时推流速度 + 轮次总耗时 */}
       <div className={css.topRow}>
         <div className={css.titleArea}>
@@ -222,7 +223,7 @@ export function TimingPanel({
                 <>
                   <div className={css.popRow}>
                     <div className={css.popLeft}>
-                      <i className={css.dot} style={{ background: 'var(--c-think)' }} />
+                      <i className={`${css.dot} ${css.dotThink}`} />
                       <span>推导思考总耗时</span>
                     </div>
                     <span className={css.popRight}>{duration(thinkMs)} (占模型 {thinkSubPct}%)</span>
@@ -267,7 +268,7 @@ export function TimingPanel({
                 <>
                   <div className={css.popRow}>
                     <div className={css.popLeft}>
-                      <i className={css.dot} style={{ background: 'var(--c-ttft)' }} />
+                      <i className={`${css.dot} ${css.dotTtft}`} />
                       <span>首响应排队延迟</span>
                     </div>
                     <span className={css.popRight}>{duration(ttftMs)} (占模型 {ttftSubPct}%)</span>
@@ -298,7 +299,7 @@ export function TimingPanel({
                 <>
                   <div className={css.popRow}>
                     <div className={css.popLeft}>
-                      <i className={css.dot} style={{ background: 'var(--c-output)' }} />
+                      <i className={`${css.dot} ${css.dotOutput}`} />
                       <span>正文与代码耗时</span>
                     </div>
                     <span className={css.popRight}>{duration(outputMs)} (占模型 {outputSubPct}%)</span>
@@ -335,7 +336,7 @@ export function TimingPanel({
                 <>
                   <div className={css.popRow}>
                     <div className={css.popLeft}>
-                      <i className={css.dot} style={{ background: 'var(--c-bash)' }} />
+                      <i className={`${css.dot} ${css.dotBash}`} />
                       <span>终端 Bash 总耗时</span>
                     </div>
                     <span className={css.popRight}>{duration(bashMs)} (占工具 {bashSubPct}%)</span>
@@ -370,7 +371,7 @@ export function TimingPanel({
                 <>
                   <div className={css.popRow}>
                     <div className={css.popLeft}>
-                      <i className={css.dot} style={{ background: 'var(--c-file)' }} />
+                      <i className={`${css.dot} ${css.dotFile}`} />
                       <span>其它工具总耗时</span>
                     </div>
                     <span className={css.popRight}>{duration(fileMs)} (占工具 {fileSubPct}%)</span>
@@ -410,19 +411,19 @@ export function TimingPanel({
       <div className={css.legendRow}>
         <div className={css.legendGroup}>
           <span className={css.legendItem}>
-            <i className={css.dot} style={{ background: 'var(--c-ttft)' }} />
+            <i className={`${css.dot} ${css.dotTtft}`} />
             <span>{ttftLabel}</span>
           </span>
           <span className={css.legendItem}>
-            <i className={css.dot} style={{ background: 'var(--c-think)' }} />
+            <i className={`${css.dot} ${css.dotThink}`} />
             <span>思考 {duration(thinkMs)}</span>
           </span>
           <span className={css.legendItem}>
-            <i className={css.dot} style={{ background: 'var(--c-output)' }} />
+            <i className={`${css.dot} ${css.dotOutput}`} />
             <span>输出 {duration(outputMs)}</span>
           </span>
           <span className={css.legendItem}>
-            <i className={css.dot} style={{ background: 'var(--c-bash)' }} />
+            <i className={`${css.dot} ${css.dotBash}`} />
             <span>工具 {duration(toolTotalMs)}</span>
           </span>
         </div>

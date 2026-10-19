@@ -1,9 +1,31 @@
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
+import path from 'node:path'
 import test from 'node:test'
 
-const clientSource = new URL('../src/client/Watcher.tsx', import.meta.url)
+const clientDir = new URL('../src/client/', import.meta.url)
+const watcherSource = new URL('../src/client/Watcher.tsx', import.meta.url)
 const clientStyles = new URL('../src/client/Watcher.module.css', import.meta.url)
+
+/**
+ * The client UI is split across several files; these contracts describe the
+ * rendered surface, not one module, so they read the whole directory. Ordering
+ * follows the directory listing, which keeps a single-file layout stable.
+ */
+async function readClientTree(extension) {
+  const names = (await readdir(clientDir, { recursive: true }))
+    .filter(name => name.endsWith(extension))
+    .sort()
+  const parts = await Promise.all(
+    names.map(name => readFile(new URL(name.split(path.sep).join('/'), clientDir), 'utf8')),
+  )
+  return parts.join('\n')
+}
+
+const clientSource = await readClientTree('.tsx')
+/** Labels and helpers live in plain `.ts` modules; contracts read those too. */
+const clientModules = await readClientTree('.ts')
+const clientCode = `${clientSource}\n${clientModules}`
 const performanceSource = new URL('../src/observation/performance.ts', import.meta.url)
 const modelTraceSource = new URL('../src/observation/model-trace.ts', import.meta.url)
 const modelDefinitionSource = new URL('../src/client/model-trace-definition.ts', import.meta.url)
@@ -12,7 +34,7 @@ const overviewSource = new URL('../src/hub/overview.ts', import.meta.url)
 const packageSource = new URL('../package.json', import.meta.url)
 
 test('text results use the official semantic reader while raw evidence stays exact', async () => {
-  const source = await readFile(clientSource, 'utf8')
+  const source = await clientSource
 
   assert.match(source, /<MarkdownText text=\{presentation\.text\}/)
   assert.match(source, /data-watcher-document=""/)
@@ -23,7 +45,7 @@ test('text results use the official semantic reader while raw evidence stays exa
 
 test('the Markdown reader is supplied through the declared RC1 client injection', async () => {
   const pkg = JSON.parse(await readFile(packageSource, 'utf8'))
-  const source = await readFile(clientSource, 'utf8')
+  const source = clientCode
   const bundle = await readFile(new URL('../lib/client.js', import.meta.url), 'utf8')
   assert.ok(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-ui-primitives'))
   // The compat window is deliberately wider than the RC1 line: it also admits
@@ -63,16 +85,19 @@ test('the Markdown reader is supplied through the declared RC1 client injection'
 
 test('the overview keeps every Step and occurrence reachable through folding and reversible grouping', async () => {
   const [source, styles] = await Promise.all([
-    readFile(clientSource, 'utf8'),
+    clientSource,
     readFile(clientStyles, 'utf8'),
   ])
 
   assert.match(source, /className=\{css\.turnToggle\}/)
   assert.match(source, /aria-expanded=\{turnOpen\}/)
-  assert.match(source, /aria-label="路径组织方式"/)
-  assert.match(source, /aria-label="路径展开深度"/)
-  assert.match(source, />\s*概览\s*<\/button>/)
-  assert.match(source, />\s*详情\s*<\/button>/)
+  // The two view switches are the shared segmented toggle: a labelled group of
+  // toggle buttons, not tabs, because neither owns a panel element.
+  assert.match(source, /<SegmentedToggle/)
+  assert.match(source, /label="路径组织方式"/)
+  assert.match(source, /label="路径展开深度"/)
+  assert.match(source, /label: '概览'/)
+  assert.match(source, /label: '详情'/)
   assert.match(source, /layerDisclosureOpen\(disclosure, 'phase', group\.id\)/)
   assert.match(source, /className=\{css\.phaseMarker\}/)
   assert.match(source, /className=\{css\.phaseToggle\}/)
@@ -84,8 +109,8 @@ test('the overview keeps every Step and occurrence reachable through folding and
   assert.match(source, /clusterWorkItems\(group\.items\.filter\(item => item\.source !== 'model'\)\)/)
   assert.match(source, /className=\{css\.analysisClusterToggle\}/)
   assert.match(source, /onSelectItem=\{item => selectItem\(group, item\)\}/)
-  assert.match(source, />\s*逐项\s*<\/button>/)
-  assert.match(source, />\s*归类\s*<\/button>/)
+  assert.match(source, /label: '逐项'/)
+  assert.match(source, /label: '归类'/)
   assert.match(source, /aria-label="返回工作路径"/)
   assert.match(source, /picture\.stepCount/)
   assert.doesNotMatch(source, /<StatusMark status=\{turn\.status\}/)
@@ -108,7 +133,7 @@ test('the overview keeps every Step and occurrence reachable through folding and
 
 test('partial history stays explicitly loadable without blocking Host summary', async () => {
   const [source, styles] = await Promise.all([
-    readFile(clientSource, 'utf8'),
+    clientSource,
     readFile(clientStyles, 'utf8'),
   ])
 
@@ -122,7 +147,7 @@ test('partial history stays explicitly loadable without blocking Host summary', 
 
 test('wall-clock evidence is visible at every useful level without heuristic speed', async () => {
   const [source, styles, performance, overview] = await Promise.all([
-    readFile(clientSource, 'utf8'),
+    clientSource,
     readFile(clientStyles, 'utf8'),
     readFile(performanceSource, 'utf8'),
     readFile(overviewSource, 'utf8'),
@@ -153,7 +178,7 @@ test('wall-clock evidence is visible at every useful level without heuristic spe
 
 test('each Step can disclose a truthful nested model stage and provider-visible reasoning', async () => {
   const [source, styles, modelTrace, modelDefinition, clientIndex] = await Promise.all([
-    readFile(clientSource, 'utf8'),
+    clientSource,
     readFile(clientStyles, 'utf8'),
     readFile(modelTraceSource, 'utf8'),
     readFile(modelDefinitionSource, 'utf8'),
@@ -183,7 +208,7 @@ test('each Step can disclose a truthful nested model stage and provider-visible 
 
 test('collapsing the overlay drawer animates instead of popping away', async () => {
   const [source, styles] = await Promise.all([
-    readFile(clientSource, 'utf8'),
+    clientSource,
     readFile(clientStyles, 'utf8'),
   ])
 
@@ -215,7 +240,7 @@ test('the overlay drawer covers the work path without reflowing it', async () =>
   // fixed-width children (the old docked-column reflow trick).
   assert.match(styles, /\.inspector \{[\s\S]*?width: min\(460px, 100%\);/)
   assert.match(styles, /\.inspector \{[\s\S]*?border-left: 1px solid var\(--dsw-alias-border-l2\);/)
-  assert.match(styles, /rgb\(from var\(--dsw-specific-menu, #fff\) r g b \/ 1\)/)
+  assert.match(styles, /rgb\(from var\(--ui-surface\) r g b \/ 1\)/)
   assert.doesNotMatch(styles, /\.inspector > \* \{\s*box-sizing: border-box;\s*width: 438px;/)
   assert.match(styles, /\.statusLine,\s*\n\.detailStatus \{\s*display: flex;\s*\n\s*flex-wrap: wrap;/)
   assert.match(styles, /\.location \{\s*margin-left: auto;\s*\n\s*min-width: 0;/)
@@ -224,7 +249,7 @@ test('the overlay drawer covers the work path without reflowing it', async () =>
 test('the docked inspector keeps a visible way back to the work path', async () => {
 
   const [source, styles] = await Promise.all([
-    readFile(clientSource, 'utf8'),
+    clientSource,
     readFile(clientStyles, 'utf8'),
   ])
 

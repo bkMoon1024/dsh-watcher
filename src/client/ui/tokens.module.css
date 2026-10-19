@@ -1,0 +1,98 @@
+/* Shared vocabulary for the Watcher surface family.
+ *
+ * Everything here resolves to a host `--dsw-*` semantic token; the plugin owns
+ * no palette of its own. Values are declared on a class rather than `:root`
+ * because the client bundle inlines each module.css as a style tag keyed by
+ * file, and a global `:root` block would leak between plugin builds.
+ *
+ * `composes` is not usable here: the build's CSS-module plugin only keeps the
+ * single generated name per local, so a cross-file compose silently drops the
+ * composed declarations. Apply the class to the component root instead and let
+ * the custom properties inherit down the tree:
+ *   <section className={`${tokensCss.tokens} ${css.panel}`}>
+ */
+.tokens {
+  /* Text: the host's three label tiers, nothing in between. */
+  --ui-text: var(--dsw-alias-label-primary);
+  --ui-text-secondary: var(--dsw-alias-label-secondary);
+  --ui-text-tertiary: var(--dsw-alias-label-tertiary);
+  --ui-text-caption: var(--dsw-alias-label-caption);
+
+  /* Surfaces: opaque menu body over inset bands. */
+  --ui-surface: var(--dsw-specific-menu);
+  --ui-surface-raised: var(--dsw-alias-bg-layer-2);
+  --ui-surface-sunken: var(--dsw-alias-bg-layer-1);
+
+  /* Lines: hairlines only; no decorative borders. */
+  --ui-line: var(--dsw-alias-border-l2);
+  --ui-line-strong: var(--dsw-alias-border-l3);
+
+  /* State: the host's semantic state family, never a static swatch. */
+  --ui-state-success: var(--dsw-alias-state-success-primary);
+  --ui-state-warn: var(--dsw-alias-state-warn-primary);
+  --ui-state-error: var(--dsw-alias-state-error-primary);
+  --ui-state-idle: var(--dsw-alias-state-idle-primary);
+  --ui-state-success-fill: color-mix(in srgb, var(--ui-state-success) 10%, transparent);
+  --ui-state-warn-fill: color-mix(in srgb, var(--ui-state-warn) 12%, transparent);
+  --ui-state-error-fill: color-mix(in srgb, var(--ui-state-error) 12%, transparent);
+
+  /* Emphasis: the host's brand accent for the one selected affordance. */
+  --ui-accent: var(--dsw-alias-brand-primary);
+  --ui-accent-fill: color-mix(in srgb, var(--ui-accent) 10%, transparent);
+  --ui-accent-line: color-mix(in srgb, var(--ui-accent) 38%, transparent);
+  --ui-text-on-accent: var(--dsw-alias-label-primary-foreground);
+
+  /* Interactive fills, so hover/pressed match host controls exactly. */
+  --ui-hover: var(--dsw-alias-interactive-bg-hover);
+  --ui-active: var(--dsw-alias-interactive-bg-active);
+
+  /* Geometry and type: host values, not plugin inventions. */
+  --ui-radius-panel: var(--dsw-radius-panel);
+  --ui-radius-card: var(--dsw-radius-md);
+  --ui-radius-row: var(--dsw-radius-sm);
+  --ui-font: var(--dsw-font-family);
+  --ui-font-mono: var(--dsw-font-markdown-code-font-family);
+  --ui-elevation-panel: var(--dsw-elevation-panel);
+  --ui-elevation-soft: var(--dsw-elevation-soft);
+  --ui-focus-ring: var(--dsw-focus-ring-color);
+
+  /* Motion: one curve, three durations, all under 200ms. */
+  --ui-ease: cubic-bezier(.2, .8, .2, 1);
+  --ui-motion-fast: 120ms;
+  --ui-motion: 160ms;
+  --ui-motion-slow: 200ms;
+
+  font-family: var(--ui-font);
+  color: var(--ui-text);
+}
+
+/* Duration-series colors for the timing bar. The plugin ships no palette: the
+ * model phases are a light-to-dark ramp of the host accent, and the tool phases
+ * borrow the host's success hue. Tinting against the surface token keeps both
+ * ramps readable in either theme without a hand-written dark override. */
+.series {
+  --ui-series-ttft: color-mix(in srgb, var(--ui-accent) 28%, var(--ui-surface-raised));
+  --ui-series-think: color-mix(in srgb, var(--ui-accent) 58%, var(--ui-surface-raised));
+  --ui-series-output: var(--ui-accent);
+  --ui-series-bash: var(--ui-state-success);
+  --ui-series-file: color-mix(in srgb, var(--ui-state-success) 52%, var(--ui-surface-raised));
+
+  /* Categorical series for the per-model charts. A fixed order is required so
+   * a model keeps its hue across the donut, the stacked area and the legends;
+   * the hues are mixed from theme tokens, so dark mode follows along. */
+  --ui-chart-1: var(--ui-accent);
+  --ui-chart-2: color-mix(in srgb, var(--ui-state-success) 72%, var(--ui-accent));
+  --ui-chart-3: color-mix(in srgb, var(--ui-state-warn) 86%, var(--ui-surface-raised));
+  --ui-chart-4: var(--ui-state-success);
+  --ui-chart-5: color-mix(in srgb, var(--ui-state-error) 74%, var(--ui-surface-raised));
+  --ui-chart-6: color-mix(in srgb, var(--ui-accent) 46%, var(--ui-state-warn));
+}
+
+/* Host controls animate only transform and opacity. */
+@media (prefers-reduced-motion: reduce) {
+  .tokens {
+    --ui-motion-fast: .01ms;
+    --ui-motion: .01ms;
+    --ui-motion-slow: .01ms;
+  }
+}

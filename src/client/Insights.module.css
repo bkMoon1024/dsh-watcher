@@ -1,29 +1,31 @@
-/* dsh-watcher · Insights v2 —— “安静的仪表”设计语言
+/* dsh-watcher · Insights —— 与 Watcher 面板共用一套视觉语言
  * 原则：
- *  1. 一个品牌色（DeepSeek 蓝）承担交互与强调；语义色只表达状态
- *     （成功 / 警示 / 错误）；分类色只出现在图表系列里。
+ *  1. 颜色全部来自宿主语义 token（见 ui/tokens.module.css）；插件不持有调色板。
  *  2. 两级表面：卡片 = specific-menu，内衬 = bg-layer-2；发丝边框，无重影。
  *  3. 数字一律 tabular-nums；字号阶梯 10 / 11 / 12 / 13 / 16 / 20。
- *  4. 控件统一「分段控件」配方：内衬底 + 浮起活动页；圆角 12（卡）/ 8（控件）。
+ *  4. 控件复用宿主 primitives（SegmentedControl / Button / Input），不另造配方。
+ *
+ * 这里只做一次别名映射，让既有的 --wi-* 引用继续工作；真正的值由挂在根元素上的
+ * ui/tokens.module.css 提供。
  */
 
 /* ───────────────────────── tokens ───────────────────────── */
 
 .settingsContainer,
 .hudBox {
-  --wi-accent: var(--dsw-static-deepseek-450, #5686fe);
-  --wi-accent-tint: color-mix(in srgb, var(--wi-accent) 10%, transparent);
-  --wi-accent-line: color-mix(in srgb, var(--wi-accent) 38%, transparent);
-  --wi-ok: var(--dsw-alias-state-success-primary, var(--dsw-static-green-500, #10b981));
-  --wi-warn: var(--dsw-alias-state-warn-primary, var(--dsw-static-amber-500, #d97706));
-  --wi-err: var(--dsw-alias-state-error-primary, var(--dsw-static-red-600, #ef4444));
-  /* 分类色：与图表 PALETTE 同族的紫 / 天蓝，仅用于思考 vs 正文等成对系列 */
-  --wi-think: #8b5cf6;
-  --wi-file: var(--dsw-static-blue-500, #0ea5e9);
-  --wi-card: var(--dsw-specific-menu);
-  --wi-inset: var(--dsw-alias-bg-layer-2);
-  --wi-line: var(--dsw-alias-border-l2);
-  --wi-line-strong: var(--dsw-alias-border-l3, var(--dsw-alias-border-l2));
+  --wi-accent: var(--ui-accent);
+  --wi-accent-tint: var(--ui-accent-fill);
+  --wi-accent-line: var(--ui-accent-line);
+  --wi-ok: var(--ui-state-success);
+  --wi-warn: var(--ui-state-warn);
+  --wi-err: var(--ui-state-error);
+  /* 成对系列（思考 / 文件）沿用耗时条的分色，保证全插件同一套图表色。 */
+  --wi-think: var(--ui-series-think);
+  --wi-file: var(--ui-series-file);
+  --wi-card: var(--ui-surface);
+  --wi-inset: var(--ui-surface-raised);
+  --wi-line: var(--ui-line);
+  --wi-line-strong: var(--ui-line-strong);
   --wi-num: tabular-nums;
 }
 
@@ -44,7 +46,7 @@
   flex-direction: column;
   gap: 6px;
   padding: 10px 14px 9px;
-  background: var(--watcher-layer, var(--dsw-alias-bg-layer-2));
+  background: var(--ui-surface-raised);
   border-bottom: 1px solid var(--dsw-alias-border-l2);
 }
 
@@ -218,72 +220,26 @@
 }
 
 /* 分段控件（统一配方）：本轮 / 全会话 */
-.scopeGroup {
-  display: inline-flex;
-  padding: 2px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 7px;
-  background: var(--dsw-alias-bg-layer-2);
-  gap: 2px;
-}
 
-.scopeBtn {
-  padding: 1px 8px;
-  font-size: 11px;
-  border: 0;
-  background: transparent;
-  color: var(--dsw-alias-label-tertiary);
-  border-radius: 5px;
-  cursor: pointer;
-  line-height: 15px;
-  transition: all 120ms ease;
-  white-space: nowrap;
-}
 
-.scopeBtn:hover {
-  color: var(--dsw-alias-label-primary);
-}
 
-.scopeBtn[data-active] {
-  background: var(--watcher-surface, var(--dsw-specific-menu));
-  color: var(--dsw-alias-label-primary);
-  font-weight: 600;
-  box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l2);
-}
 
-/* 多模型切换 Tab 栏 */
+/* Model filter row: the shared segmented toggle owns its own track and sizing;
+ * this only gives it the inset band it sits on. */
 .modelTabBar {
   display: flex;
-  gap: 6px;
   padding: 6px 14px;
-  background: var(--watcher-layer, var(--dsw-alias-bg-layer-1));
-  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  background: var(--ui-surface-sunken);
+  border-bottom: 1px solid var(--ui-line);
   overflow-x: auto;
 }
 
-.modelTabBtn {
-  padding: 2px 9px;
-  font-size: 11px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--dsw-alias-label-secondary);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 120ms;
+.modelTabBar > * {
+  flex: 0 0 auto;
 }
 
-.modelTabBtn:hover {
-  color: var(--dsw-alias-label-primary);
-  border-color: var(--wi-line-strong);
-}
 
-.modelTabBtn[data-active] {
-  background: var(--wi-accent-tint);
-  color: var(--wi-accent);
-  border-color: var(--wi-accent-line);
-  font-weight: 600;
-}
+
 
 /* 核心内容区 */
 .hudBody {
@@ -305,7 +261,7 @@
   gap: 10px;
   padding: 7px 10px;
   border-radius: 8px;
-  background: var(--watcher-surface, var(--dsw-alias-bg-layer-2));
+  background: var(--ui-surface-raised);
   border: 1px solid var(--dsw-alias-border-l2);
   border-left: 3px solid var(--wi-warn);
 }
@@ -365,23 +321,7 @@
   white-space: nowrap;
 }
 
-.alertActionBtn {
-  flex-shrink: 0;
-  padding: 3px 9px;
-  border-radius: 6px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  background: var(--watcher-surface, var(--dsw-specific-menu));
-  color: var(--dsw-alias-label-primary);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 120ms;
-}
 
-.alertActionBtn:hover {
-  border-color: var(--wi-accent-line);
-  color: var(--wi-accent);
-}
 
 /* ═════════════════════════ 设置页 ═════════════════════════ */
 
@@ -436,62 +376,12 @@
   gap: 8px;
 }
 
-.rangeSwitchGroup {
-  display: flex;
-  background: var(--dsw-alias-bg-layer-2);
-  padding: 2px;
-  border-radius: 7px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  gap: 2px;
-}
 
-.rangeBtn {
-  border: none;
-  background: transparent;
-  padding: 2px 10px;
-  border-radius: 5px;
-  font-size: 11px;
-  color: var(--dsw-alias-label-tertiary);
-  font-weight: 500;
-  cursor: pointer;
-  line-height: 16px;
-  transition: all 120ms;
-  white-space: nowrap;
-}
 
-.rangeBtn:hover {
-  color: var(--dsw-alias-label-primary);
-}
 
-.rangeBtn[data-active] {
-  background: var(--dsw-specific-menu);
-  color: var(--dsw-alias-label-primary);
-  font-weight: 600;
-  box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l2);
-}
 
-.settingsScanBtn {
-  padding: 3px 12px;
-  border-radius: 7px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  background: var(--dsw-alias-bg-layer-1);
-  color: var(--dsw-alias-label-primary);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  line-height: 16px;
-  transition: all 120ms;
-}
 
-.settingsScanBtn:hover:not(:disabled) {
-  border-color: var(--wi-accent-line);
-  color: var(--wi-accent);
-}
 
-.settingsScanBtn:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
 
 /* ── 总览：四枚等宽指标瓦片 ── */
 
@@ -607,7 +497,7 @@
 .roastItem[data-tone='warn'] { --tone: var(--wi-warn); }
 .roastItem[data-tone='err'] { --tone: var(--wi-err); }
 .roastItem[data-tone='think'] { --tone: var(--wi-think); }
-.roastItem[data-tone='info'] { --tone: var(--dsw-static-blue-500, var(--wi-accent)); }
+.roastItem[data-tone='info'] { --tone: var(--wi-accent); }
 
 .roastItem:hover {
   border-color: var(--wi-line-strong);
@@ -773,23 +663,7 @@
   white-space: nowrap;
 }
 
-.drilldownCloseBtn {
-  background: transparent;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 6px;
-  color: var(--dsw-alias-label-secondary);
-  font-size: 11px;
-  padding: 3px 9px;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: all 120ms;
-}
 
-.drilldownCloseBtn:hover {
-  background: var(--dsw-alias-bg-layer-2);
-  color: var(--dsw-alias-label-primary);
-  border-color: var(--wi-line-strong);
-}
 
 .drilldownEmpty {
   padding: 16px;
@@ -902,9 +776,9 @@
 
 /* 复合比例条的成对分段（思考/正文、命中/未命中、终端/文件） */
 .barSegThink { background: var(--wi-think); height: 100%; }
-.barSegBody { background: var(--dsw-static-blue-500, var(--wi-file)); height: 100%; }
+.barSegBody { background: var(--wi-file); height: 100%; }
 .barSegHit { background: var(--wi-ok); height: 100%; }
-.barSegMiss { background: var(--dsw-alias-border-l3, var(--dsw-alias-border-l2)); height: 100%; }
+.barSegMiss { background: var(--wi-line-strong); height: 100%; }
 .barSegBash { background: var(--wi-ok); height: 100%; }
 .barSegFile { background: var(--wi-file); height: 100%; }
 
@@ -1402,29 +1276,8 @@
   flex-shrink: 0;
 }
 
-.sortBtn {
-  border: none;
-  background: transparent;
-  padding: 2px 8px;
-  border-radius: 5px;
-  font-size: 10px;
-  color: var(--dsw-alias-label-tertiary);
-  cursor: pointer;
-  line-height: 15px;
-  transition: all 120ms;
-  white-space: nowrap;
-}
 
-.sortBtn:hover {
-  color: var(--dsw-alias-label-primary);
-}
 
-.sortBtn[data-active] {
-  background: var(--dsw-specific-menu);
-  color: var(--dsw-alias-label-primary);
-  font-weight: 600;
-  box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l2);
-}
 
 .sessionTableBox {
   display: flex;
@@ -1657,8 +1510,7 @@
   position: absolute;
   z-index: 50;
   pointer-events: none;
-  background: var(--dsw-specific-menu);
-  background: rgb(from var(--dsw-specific-menu, #fff) r g b / 1);
+  background: var(--ui-surface);
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 10px;
   box-shadow:
@@ -1815,43 +1667,14 @@
 
 .lineActiveInner {
   fill: var(--wi-accent);
-  stroke: var(--dsw-static-neutral-00, #ffffff);
+  stroke: var(--ui-surface);
   stroke-width: 1.5;
   pointer-events: none;
 }
 
-.viewSwitchGroup {
-  display: flex;
-  background: var(--dsw-alias-bg-layer-2);
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 7px;
-  padding: 2px;
-  gap: 2px;
-}
 
-.viewSwitchBtn {
-  padding: 2px 8px;
-  border-radius: 5px;
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--dsw-alias-label-tertiary);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  line-height: 15px;
-  transition: all 120ms;
-}
 
-.viewSwitchBtn:hover {
-  color: var(--dsw-alias-label-primary);
-}
 
-.viewSwitchBtn[data-active] {
-  background: var(--dsw-specific-menu);
-  color: var(--dsw-alias-label-primary);
-  font-weight: 600;
-  box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l2);
-}
 
 /* ── 近 6 个月热力图 ── */
 
@@ -2007,7 +1830,7 @@
 
 .heatmapCell[data-level='4'] {
   background: var(--wi-accent);
-  border: 1px solid color-mix(in srgb, var(--wi-accent) 100%, #9bb8ff);
+  border: 1px solid var(--wi-accent-line);
   box-shadow: 0 0 8px color-mix(in srgb, var(--wi-accent) 40%, transparent);
 }
 
@@ -2104,7 +1927,7 @@
 
 .heatmapLegendCell[data-level='4'] {
   background: var(--wi-accent);
-  border: 1px solid color-mix(in srgb, var(--wi-accent) 100%, #9bb8ff);
+  border: 1px solid var(--wi-accent-line);
 }
 
 /* ── 底部设置抽屉 ── */
@@ -2202,21 +2025,7 @@
   align-items: center;
 }
 
-.settingsResetBtn {
-  padding: 3px 10px;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--dsw-alias-label-secondary);
-  border: 1px solid var(--dsw-alias-border-l2);
-  font-size: 11px;
-  cursor: pointer;
-  transition: all 120ms;
-}
 
-.settingsResetBtn:hover {
-  color: var(--dsw-alias-label-primary);
-  border-color: var(--wi-line-strong);
-}
 
 .settingInlineItem {
   display: flex;
@@ -2227,36 +2036,18 @@
   white-space: nowrap;
 }
 
+/* The host Input is a 32px control; these thresholds sit inline in a sentence,
+ * so only the box is narrowed while the host's border and focus treatment stay. */
 .settingsMiniInput {
-  width: 56px;
-  padding: 3px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  background: var(--dsw-alias-bg-layer-1);
-  color: var(--dsw-alias-label-primary);
-  font-size: 11px;
+  width: 68px;
+  height: 26px;
+  padding: 0 6px;
+}
+
+.settingsMiniInput input {
+  font-size: 12px;
   font-variant-numeric: var(--wi-num);
   text-align: right;
-  outline: none;
 }
 
-.settingsMiniInput:focus-visible {
-  outline: 2px solid var(--wi-accent);
-  outline-offset: -1px;
-}
 
-.settingsMiniSaveBtn {
-  padding: 3px 12px;
-  border-radius: 6px;
-  background: var(--wi-accent);
-  color: var(--dsw-static-neutral-00, #fff);
-  border: none;
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: filter 120ms;
-}
-
-.settingsMiniSaveBtn:hover {
-  filter: brightness(1.08);
-}

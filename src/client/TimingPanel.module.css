@@ -1,30 +1,20 @@
-/* 耗时分布复合柱图与诊断面板 —— 与 Insights v2 同一设计语言 */
+/* Duration distribution: one stacked bar plus a hover read-out.
+ *
+ * The panel is built from the shared vocabulary in ui/tokens.module.css, which
+ * the component applies to its root. No palette is declared here: the five
+ * series colors come from `.series`, the states from the host's semantic
+ * tokens, so both themes are covered without a dark override. */
 .panelBox {
-  /* 分类色：五个执行阶段各自的系列色（图例/切片/浮层点共用） */
-  --c-ttft: var(--dsw-static-neutral-400, #94a3b8);
-  --c-think: var(--dsw-static-deepseek-450, #3b82f6);
-  --c-output: var(--dsw-static-blue-500, #38bdf8);
-  --c-bash: var(--dsw-static-green-500, #059669);
-  --c-file: color-mix(in srgb, var(--dsw-static-green-500, #10b981) 62%, #ffffff);
-
   box-sizing: border-box;
   width: 100%;
   padding: 12px 14px;
-  background: var(--watcher-surface, var(--dsw-specific-menu, #fff));
-  border: 1px solid var(--dsw-alias-border-l2, #e2e4e9);
-  border-radius: 8px;
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-card);
   position: relative;
 }
 
-:global(body[data-ds-dark-theme]) .panelBox {
-  --c-ttft: #64748b;
-  --c-think: #60a5fa;
-  --c-output: #38bdf8;
-  --c-bash: #10b981;
-  --c-file: #6ee7b7;
-}
-
-/* 顶行：标题 + 实时推流速度 + 总耗时 */
+/* Top row: title, live throughput, total. */
 .topRow {
   display: flex;
   justify-content: space-between;
@@ -47,7 +37,7 @@
 .mainTitle {
   font-size: 12px;
   font-weight: 600;
-  color: var(--dsw-alias-label-primary, #17181c);
+  color: var(--ui-text);
   white-space: nowrap;
 }
 
@@ -55,11 +45,11 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: var(--watcher-layer, var(--dsw-alias-bg-layer-2));
+  background: var(--ui-surface-sunken);
   padding: 1px 7px;
   border-radius: 999px;
-  border: 1px solid var(--dsw-alias-border-l2, #e2e8f0);
-  color: var(--dsw-alias-label-primary, #17181c);
+  border: 1px solid var(--ui-line);
+  color: var(--ui-text);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   font-size: 10px;
@@ -70,26 +60,26 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--c-output);
+  background: var(--ui-series-output);
   animation: pulse 1.5s infinite;
 }
 
 .totalDuration {
-  color: var(--dsw-alias-label-secondary, #5f636d);
+  color: var(--ui-text-secondary);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .bottleneckText {
   font-size: 11px;
-  color: var(--dsw-alias-label-primary, #17181c);
+  color: var(--ui-text);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   flex-shrink: 0;
 }
 
-/* 复合柱图 */
+/* Stacked bar. */
 .chartBox {
   position: relative;
   width: 100%;
@@ -103,53 +93,47 @@
   overflow: hidden;
   display: flex;
   gap: 1px;
-  background: var(--dsw-alias-bg-layer-2, #e2e8f0);
+  background: var(--ui-surface-sunken);
   cursor: crosshair;
 }
 
-.modelCluster {
-  height: 100%;
-  display: flex;
-  position: relative;
-  transition: opacity 120ms;
-}
-
+.modelCluster,
 .toolCluster {
   height: 100%;
   display: flex;
   position: relative;
-  transition: opacity 120ms;
+  transition: opacity var(--ui-motion-fast) linear;
 }
 
 .slice {
   height: 100%;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: opacity var(--ui-motion-fast) linear;
   position: relative;
 }
 
 .slice:hover {
-  filter: brightness(1.12);
+  opacity: .78;
   z-index: 5;
 }
 
 .slice + .slice {
-  border-left: 1px solid var(--dsw-static-neutral-00, rgba(255, 255, 255, 0.5));
+  border-left: 1px solid var(--ui-surface);
 }
 
-.sliceTtft   { background: var(--c-ttft); }
-.sliceThink  { background: var(--c-think); }
-.sliceOutput { background: var(--c-output); }
-.sliceBash   { background: var(--c-bash); }
-.sliceFile   { background: var(--c-file); }
+.sliceTtft   { background: var(--ui-series-ttft); }
+.sliceThink  { background: var(--ui-series-think); }
+.sliceOutput { background: var(--ui-series-output); }
+.sliceBash   { background: var(--ui-series-bash); }
+.sliceFile   { background: var(--ui-series-file); }
 
-/* 底行：图例 + 状态胶囊 */
+/* Legend and status. */
 .legendRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 11px;
-  color: var(--dsw-alias-label-secondary, #5f636d);
+  color: var(--ui-text-secondary);
   flex-wrap: wrap;
   row-gap: 6px;
   gap: 8px;
@@ -171,11 +155,11 @@
   gap: 4px;
   cursor: pointer;
   white-space: nowrap;
-  transition: opacity 120ms;
+  transition: opacity var(--ui-motion-fast) linear;
 }
 
 .legendItem:hover {
-  opacity: 0.75;
+  opacity: .72;
 }
 
 .dot {
@@ -185,7 +169,12 @@
   flex-shrink: 0;
 }
 
-/* 状态胶囊 */
+.dotTtft   { background: var(--ui-series-ttft); }
+.dotThink  { background: var(--ui-series-think); }
+.dotOutput { background: var(--ui-series-output); }
+.dotBash   { background: var(--ui-series-bash); }
+.dotFile   { background: var(--ui-series-file); }
+
 .statusPill {
   padding: 1px 8px;
   border-radius: 999px;
@@ -199,37 +188,38 @@
 }
 
 .statusPill.statusOk {
-  color: var(--dsw-alias-state-success-primary, var(--dsw-static-green-500, #15803d));
-  background: color-mix(in srgb, var(--dsw-static-green-500, #10b981) 10%, transparent);
+  color: var(--ui-state-success);
+  background: var(--ui-state-success-fill);
 }
 
 .statusPill.statusWarn {
-  color: var(--dsw-alias-state-warn-primary, #b45309);
-  background: color-mix(in srgb, var(--dsw-alias-state-warn-primary, #d97706) 12%, transparent);
+  color: var(--ui-state-warn);
+  background: var(--ui-state-warn-fill);
 }
 
 .statusPill.statusDanger {
-  color: var(--dsw-alias-state-error-primary, #b91c1c);
-  background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #ef4444) 12%, transparent);
+  color: var(--ui-state-error);
+  background: var(--ui-state-error-fill);
 }
 
-/* 悬停分析浮层：主题表面 + 发丝边框，箭头指向切片 */
+/* Hover read-out: an opaque surface with a hairline, arrow pointing at the
+ * slice under the pointer. */
 .popover {
   position: absolute;
   bottom: calc(100% + 8px);
   top: auto;
-  background: var(--dsw-specific-menu, #fff);
-  color: var(--dsw-alias-label-primary, #17181c);
-  border: 1px solid var(--dsw-alias-border-l2, #e2e4e9);
+  background: var(--ui-surface);
+  color: var(--ui-text);
+  border: 1px solid var(--ui-line);
   padding: 10px 14px;
-  border-radius: 10px;
+  border-radius: var(--ui-radius-card);
   font-size: 11px;
-  box-shadow: var(--dsw-shadow-lv3, 0 8px 24px rgba(0, 0, 0, 0.16));
+  box-shadow: var(--ui-elevation-soft);
   pointer-events: none;
   width: 360px;
   max-width: calc(100% - 16px);
   z-index: 50;
-  animation: popIn 120ms ease-out;
+  animation: popIn var(--ui-motion-fast) var(--ui-ease);
   box-sizing: border-box;
   white-space: nowrap;
 }
@@ -242,14 +232,14 @@
   transform: translateX(-50%);
   border-width: 5px 5px 0;
   border-style: solid;
-  border-color: var(--dsw-specific-menu, #fff) transparent transparent;
+  border-color: var(--ui-surface) transparent transparent;
 }
 
 .popTitle {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--dsw-alias-border-l2, #e2e4e9);
+  border-bottom: 1px solid var(--ui-line);
   padding-bottom: 5px;
   margin-bottom: 6px;
   font-weight: 600;
@@ -275,14 +265,14 @@
 .popRowDivide {
   margin-top: 4px;
   padding-top: 4px;
-  border-top: 1px dashed var(--dsw-alias-border-l2, rgba(127, 137, 148, 0.35));
+  border-top: 1px dashed var(--ui-line);
 }
 
 .popLeft {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--dsw-alias-label-secondary, #5f636d);
+  color: var(--ui-text-secondary);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -290,14 +280,14 @@
 .popRight {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-  color: var(--dsw-alias-label-primary, #17181c);
+  color: var(--ui-text);
   white-space: nowrap;
   flex-shrink: 0;
   text-align: right;
 }
 
 .activeVal {
-  color: var(--dsw-alias-state-warn-primary, #fbbf24);
+  color: var(--ui-state-warn);
   font-weight: 700;
 }
 

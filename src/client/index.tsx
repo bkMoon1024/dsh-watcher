@@ -7,7 +7,7 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { loadCompleteHistory } from '../hub/history.ts'
 import { Watcher, type WatcherInjected } from './Watcher.tsx'
 import { registerModelTraceDefinition } from './model-trace-definition.ts'
-import { InsightsSettings } from './Insights.tsx'
+import { InsightsSettings } from './InsightsSettings.tsx'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 
