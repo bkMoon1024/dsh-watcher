@@ -78,6 +78,8 @@ The visual direction is a quiet editorial instrument: a session summary, collaps
 
 The implementation consumes DSH `--dsw-*` semantic tokens so light and dark themes remain native. Front-matter colors document role and contrast intent; they are fallback references, not permission to hard-code a parallel theme. Error, running, success, and unknown states always include text or icons and never rely on color alone.
 
+Semantic tokens expose only four states, so categorical colour (phase hues, timing series, chart palette) comes from the host static swatches, mixed with theme surfaces where a softer tint is needed. The brand accent is ink — near-black in light, near-white in dark — and therefore never carries "live": running and current affordances use the host business blue (`--dsw-alias-state-business-primary`, aliased as `--ui-live`).
+
 ## Typography
 
 Interface copy uses the host system family. Body and metadata are 13px and 12px respectively; explanatory labels may drop to 11px, the host's floor, and never below it. Code and raw results are 13px. Node titles use 15–16px. Tabular figures are required for Turn, Step, duration, exit code, and counts. Critical paths and commands wrap or scroll into a full-view surface; they are never silently truncated.
@@ -124,9 +126,9 @@ Host primitives are used wherever the host already ships one: `Button`, `Input`,
 
 ### Panel shell
 
-- The panel is two tabs, `工作路径` and `会话统计`, built on the host `SegmentedControl` with real `*-panel` tabpanels. Statistics and the path no longer share one scroll area: the HUD cannot push the path, and the path owns its own scroll position.
+- The panel is one column: status line, path toolbar, session HUD, rail. Only the rail scrolls, so the HUD cannot push the path and the path owns its own scroll position; the HUD stays visible while the path is browsed.
 - The path toolbar carries search (title, tool, phase), a `全部` / `异常` / `等待` status filter, the organize and depth switches, and history paging. Filtering keeps phases that match on title or on any occurrence, auto-expands them, and says so when nothing matches instead of rendering an empty rail.
-- The trigger, status line and follow control stay above both tabs; the resize handles and the remembered panel size are unchanged.
+- The trigger, status line and follow control stay above the column; the resize handles and the remembered panel size are unchanged.
 
 ### Work picture
 
@@ -237,7 +239,7 @@ The model/tool figures are diagnostic recorded sums, not slices of a pie: parall
 - Primary task: scan every Step, its model-time decomposition, and every occurrence in the causal work rail while it grows.
 - Secondary task: fold Turn/phase/Step/model levels or switch to same-kind analysis without losing source identity.
 - Tertiary task: select one occurrence, inspect it, then copy or expand complete raw evidence.
-- Navigation model: header trigger → panel tab (`工作路径` / `会话统计`) → path toolbar (search, status, organize, depth, history) → Turn → phase → Step → model stage / reasoning attempt or execution → inspector (record stepper) → structured/raw evidence. The settings section is a separate surface with its own four tabs.
+- Navigation model: header trigger → path toolbar (search, status, organize, depth, history) → session HUD → Turn → phase → Step → model stage / reasoning attempt or execution → inspector (record stepper) → structured/raw evidence. The settings section is a separate surface with its own four tabs.
 - Required states: empty, opening, following, pinned/unread, expanded/collapsed, itemized/grouped, model-waiting, reasoning-streaming, reasoning-settled, reasoning-content-without-timing, reasoning-unavailable, running, parallel, returned-neutral, success, failure, waiting-user, interrupted, partial-history, and reduced-motion.
 
 ## Taste Signature

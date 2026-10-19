@@ -110,20 +110,20 @@ export function SessionInsights({ value, now, running, waiting, onEvidence, toke
         </div>
         <div className={css.hudStatRow}>
           {scope === 'turn' && currentRoute?.model ? (
-            <span className={css.currentModelTag} title={routeLabel(currentRoute)}>
+            <span className={css.currentModelTag} data-metric="model" title={routeLabel(currentRoute)}>
               <strong className={css.modelTagText}>{routeLabel(currentRoute)}</strong>
               {currentRoute.effort ? (
                 <span className={css.effortTag}>思考: {effortLabel(currentRoute.effort)}</span>
               ) : null}
             </span>
           ) : null}
-          <span className={css.contextTag}>
+          <span className={css.contextTag} data-metric="context">
             {scope === 'turn' ? '上下文' : '累计输入'} <strong>{fmt(stats.input ?? 0)}</strong> Token
           </span>
-          <span className={css.tokenStat}>
+          <span className={css.tokenStat} data-metric="tokens">
             <strong>{fmt(stats.tokens ?? 0)}</strong> Token · {cachePct}% 命中
           </span>
-          <span className={css.costStat} title={costTitle} aria-label={`${copy.estimatedCost}: ${costText}`}>
+          <span className={css.costStat} data-metric="cost" title={costTitle} aria-label={`${copy.estimatedCost}: ${costText}`}>
             {copy.estimatedCost} <strong>{costText}</strong>
           </span>
         </div>

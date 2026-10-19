@@ -45,11 +45,22 @@
 }
 
 .hudHeading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   font-weight: 600;
   color: var(--ui-text);
   white-space: nowrap;
   line-height: 17px;
+}
+
+.hudHeading::before {
+  width: 3px;
+  height: 11px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--ui-live), var(--ui-chart-6));
+  content: '';
 }
 
 .hudHeadingNote {
@@ -69,13 +80,12 @@
   flex-shrink: 0;
 }
 
-/* 指标条：模型 · 上下文 · Token · 成本 —— 静排无框，细线分隔 */
+/* 指标条：模型 · 上下文 · Token · 成本 —— 每项一枚淡色胶囊，左侧圆点带分类色 */
 .hudStatRow {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  column-gap: 0;
-  row-gap: 4px;
+  gap: 6px;
   min-width: 0;
   font-size: 11px;
   color: var(--ui-text-secondary);
@@ -86,17 +96,21 @@
   align-items: center;
   gap: 5px;
   min-width: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--hue, var(--ui-text-tertiary)) 13%, transparent);
   white-space: nowrap;
   font-variant-numeric: var(--ui-num);
   color: var(--ui-text-secondary);
 }
 
-.hudStatRow > * + *::before {
+.hudStatRow > *::before {
   content: '';
-  width: 1px;
-  height: 10px;
-  margin: 0 8px;
-  background: var(--ui-line);
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--hue, var(--ui-text-tertiary));
 }
 
 .hudStatRow strong {
@@ -104,27 +118,16 @@
   font-weight: 600;
 }
 
+/* 每个指标一种色相，与图表分类色同源：模型=强调色，上下文=青，Token=紫，成本=琥珀 */
+.hudStatRow > [data-metric='model'] { --hue: var(--ui-chart-1); }
+.hudStatRow > [data-metric='context'] { --hue: var(--ui-chart-2); }
+.hudStatRow > [data-metric='tokens'] { --hue: var(--ui-chart-6); }
+.hudStatRow > [data-metric='cost'] { --hue: var(--ui-chart-3); }
+
 .currentModelTag {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: var(--ui-accent-fill);
-  font-size: 11px;
   min-width: 0;
   max-width: 100%;
-  white-space: nowrap;
   flex-shrink: 1;
-}
-
-.currentModelTag::before {
-  content: '';
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--ui-accent);
-  flex-shrink: 0;
 }
 
 .modelTagText {

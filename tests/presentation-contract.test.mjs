@@ -139,25 +139,29 @@ test('the overview keeps every Step and occurrence reachable through folding and
   assert.doesNotMatch(styles, /\.groupDot|\.nowTag/)
 })
 
-test('both panel tabs keep a mounted tabpanel so aria-controls never dangles', async () => {
+test('the panel is one column: status, filters and ledger share it without tabs', async () => {
   const [source, styles] = await Promise.all([
     clientSource,
     readFile(clientStyles, 'utf8'),
   ])
 
-  // SegmentedControl names each panel `<id>-<value>-panel`. Only the selected
-  // tab renders content, but both panels stay in the DOM with the inactive one
-  // hidden, so every tab's aria-controls resolves to a real element.
-  assert.match(source, /id="watcher-panel-stats-panel"/)
-  assert.match(source, /aria-labelledby="watcher-panel-stats"/)
-  assert.match(source, /hidden=\{panelTab !== 'stats'\}/)
-  assert.match(source, /id="watcher-panel-path-panel"/)
-  assert.match(source, /aria-labelledby="watcher-panel-path"/)
-  assert.match(source, /hidden=\{panelTab !== 'path'\}/)
-  assert.match(source, /<SegmentedControl\s+id="watcher-panel"/)
+  // The work path and the session ledger used to be sibling tabs competing for
+  // the body. They now share one column, so the panel has no tablist and no
+  // aria-controls to dangle: status, filters, ledger, then the rail.
+  assert.doesNotMatch(source, /panelTab/)
+  assert.match(source, /className=\{css\.commandBar\}/)
+  assert.match(source, /data-kind="turns"/)
+  assert.match(source, /className=\{css\.pathToolbar\}/)
+  assert.match(source, /<SessionInsights[\s\S]*?className=\{css\.railViewport\}/)
+  // Exactly one HUD: the merged panel briefly rendered it above and below the
+  // toolbar at the same time.
+  assert.equal((source.match(/<SessionInsights/g) ?? []).length, 1)
+  assert.ok(source.indexOf('className={css.pathToolbar}') < source.indexOf('<SessionInsights'))
 
-  // A class-level display value outranks the user agent's [hidden] rule.
-  assert.match(styles, /\.pathPanel\[hidden\],[\s\S]*?\.statsPanel\[hidden\]\s*\{[^}]*display:\s*none;/)
+  // The header keeps a single decorative edge, and the counters carry the
+  // category hues instead of one flat tertiary color.
+  assert.match(styles, /\.commandBar::before\s*\{/)
+  assert.match(styles, /\.controlCounts \[data-kind='turns'\]\s*\{\s*color:\s*var\(--ui-chart-1\);/)
 })
 
 test('each settings section keeps a mounted tabpanel too', async () => {

@@ -35,11 +35,17 @@
   --ui-state-warn-fill: color-mix(in srgb, var(--ui-state-warn) 12%, transparent);
   --ui-state-error-fill: color-mix(in srgb, var(--ui-state-error) 12%, transparent);
 
-  /* Emphasis: the host's brand accent for the one selected affordance. */
+  /* Emphasis: the host's brand accent for the one selected affordance. It is
+   * ink (near-black in light, near-white in dark), so it never means "live". */
   --ui-accent: var(--dsw-alias-brand-primary);
   --ui-accent-fill: color-mix(in srgb, var(--ui-accent) 10%, transparent);
   --ui-accent-line: color-mix(in srgb, var(--ui-accent) 38%, transparent);
   --ui-text-on-accent: var(--dsw-alias-label-primary-foreground);
+
+  /* Live/active state: the host's business blue, the hue the shell itself uses
+   * for running work. */
+  --ui-live: var(--dsw-alias-state-business-primary);
+  --ui-live-fill: color-mix(in srgb, var(--ui-live) 12%, transparent);
 
   /* Interactive fills, so hover/pressed match host controls exactly. */
   --ui-hover: var(--dsw-alias-interactive-bg-hover);
@@ -78,26 +84,42 @@
   color: var(--ui-text);
 }
 
-/* Duration-series colors for the timing bar. The plugin ships no palette: the
- * model phases are a light-to-dark ramp of the host accent, and the tool phases
- * borrow the host's success hue. Tinting against the surface token keeps both
- * ramps readable in either theme without a hand-written dark override. */
+/* Duration-series colors for the timing bar. Semantic tokens only expose four
+ * states, so the categorical ramps come from the host's static swatches: the
+ * model phases are a blue ramp, the tool phases a green one. Mixing the pale
+ * end against the surface token keeps both ramps readable in either theme
+ * without a hand-written dark override. */
 .series {
-  --ui-series-ttft: color-mix(in srgb, var(--ui-accent) 28%, var(--ui-surface-raised));
-  --ui-series-think: color-mix(in srgb, var(--ui-accent) 58%, var(--ui-surface-raised));
-  --ui-series-output: var(--ui-accent);
-  --ui-series-bash: var(--ui-state-success);
-  --ui-series-file: color-mix(in srgb, var(--ui-state-success) 52%, var(--ui-surface-raised));
+  --ui-series-ttft: color-mix(in srgb, var(--dsw-static-blue-400) 30%, var(--ui-surface-raised));
+  --ui-series-think: var(--dsw-static-deepseek-500);
+  --ui-series-output: var(--dsw-static-blue-400);
+  --ui-series-bash: var(--dsw-static-green-500);
+  --ui-series-file: color-mix(in srgb, var(--dsw-static-green-400) 55%, var(--ui-surface-raised));
 
   /* Categorical series for the per-model charts. A fixed order is required so
    * a model keeps its hue across the donut, the stacked area and the legends;
-   * the hues are mixed from theme tokens, so dark mode follows along. */
-  --ui-chart-1: var(--ui-accent);
-  --ui-chart-2: color-mix(in srgb, var(--ui-state-success) 72%, var(--ui-accent));
-  --ui-chart-3: color-mix(in srgb, var(--ui-state-warn) 86%, var(--ui-surface-raised));
-  --ui-chart-4: var(--ui-state-success);
-  --ui-chart-5: color-mix(in srgb, var(--ui-state-error) 74%, var(--ui-surface-raised));
-  --ui-chart-6: color-mix(in srgb, var(--ui-accent) 46%, var(--ui-state-warn));
+   * the hues are host static swatches, so light and dark agree. */
+  --ui-chart-1: var(--dsw-static-deepseek-500);
+  --ui-chart-2: var(--dsw-static-blue-400);
+  --ui-chart-3: var(--dsw-static-amber-500);
+  --ui-chart-4: var(--dsw-static-green-500);
+  --ui-chart-5: var(--dsw-static-red-500);
+  --ui-chart-6: color-mix(in srgb, var(--dsw-static-blue-500) 45%, var(--dsw-static-green-400));
+
+  /* Work-category hues: one hue per phase. The path tints each phase's
+   * duration bar and each record's left edge with these, so a glance tells
+   * planning from building from verifying without reading the titles. */
+  --ui-cat-plan: var(--dsw-static-deepseek-500);
+  --ui-cat-investigate: var(--dsw-static-blue-400);
+  --ui-cat-build: var(--dsw-static-green-500);
+  --ui-cat-verify: color-mix(in srgb, var(--dsw-static-green-500) 50%, var(--dsw-static-blue-400));
+  --ui-cat-activate: var(--dsw-static-amber-500);
+  --ui-cat-desktop: color-mix(in srgb, var(--dsw-static-deepseek-500) 55%, var(--dsw-static-red-400));
+  --ui-cat-answer: color-mix(in srgb, var(--dsw-static-green-400) 65%, var(--dsw-static-deepseek-400));
+  --ui-cat-model: color-mix(in srgb, var(--dsw-static-deepseek-400) 60%, var(--dsw-static-blue-300));
+  --ui-cat-wait: var(--dsw-static-amber-400);
+  --ui-cat-failure: var(--dsw-static-red-500);
+  --ui-cat-neutral: var(--ui-text-tertiary);
 }
 
 /* Host controls animate only transform and opacity. */

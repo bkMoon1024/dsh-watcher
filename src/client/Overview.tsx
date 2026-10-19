@@ -87,6 +87,7 @@ function OverviewOccurrenceButton({
     <button
       type="button"
       className={css.overviewOccurrence}
+      data-phase={item.phase}
       data-selected={selected ? '' : undefined}
       data-current={live ? '' : undefined}
       data-status={item.status}
@@ -211,6 +212,7 @@ export const PhaseOverview = memo(function PhaseOverview({
   return (
     <section
       className={css.phase}
+      data-phase={group.phase}
       data-selected={selectedGroup ? '' : undefined}
       data-now={isNow ? '' : undefined}
       data-overview-state={phaseState}
