@@ -1,13 +1,14 @@
-import { IconEllipsisOutlineRegular, IconGaugeOutlineRegular, IconSearchOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconChevronDownOutlineRegular, IconEllipsisOutlineRegular, IconSearchOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import css from './panel.module.css'
 
 /** Which tools the status bar currently has open; only one at a time. */
-export type PanelTool = 'none' | 'search' | 'stats' | 'menu'
+export type PanelTool = 'none' | 'search' | 'menu'
 
 /**
- * The one persistent row of the panel: what the agent is doing right now and
- * the three tools that open the rest. Everything else moved into the path or
- * into an overlay so the timeline stays the main surface.
+ * The one persistent row of the panel. The activity line doubles as the button
+ * that unfolds the work path under the usage readout: the stats stay in view,
+ * the path opens on demand. Search and the view/history menu stay quiet icons,
+ * and unfold the path themselves when it is collapsed.
  */
 export function PanelHeader({
   status,
@@ -16,8 +17,9 @@ export function PanelHeader({
   alert,
   searchActive,
   tool,
+  timelineOpen,
+  onToggleTimeline,
   onToggleSearch,
-  onToggleStats,
   onToggleMenu,
 }: {
   status: string
@@ -26,13 +28,24 @@ export function PanelHeader({
   alert: boolean
   searchActive: boolean
   tool: PanelTool
+  timelineOpen: boolean
+  onToggleTimeline: () => void
   onToggleSearch: () => void
-  onToggleStats: () => void
   onToggleMenu: () => void
 }) {
   return (
     <header className={css.statusBar}>
-      <div className={css.statusLeft}>
+      <button
+        type="button"
+        className={css.statusToggle}
+        data-open={timelineOpen ? '' : undefined}
+        data-watcher-tool="timeline"
+        aria-expanded={timelineOpen}
+        aria-controls="watcher-timeline-section"
+        aria-label={timelineOpen ? `收起执行路径，${status}` : `展开执行路径，${status}`}
+        title={timelineOpen ? '收起执行路径' : '展开执行路径'}
+        onClick={onToggleTimeline}
+      >
         <span
           className={css.statusDot}
           data-state={running ? 'running' : alert ? 'alert' : 'idle'}
@@ -43,14 +56,15 @@ export function PanelHeader({
             down to the state word. */}
         <span className={css.statusText} aria-live="polite" data-alert={alert ? '' : undefined}>{status}</span>
         {running ? <span className={css.statusNow} aria-hidden="true" title={nowLabel}>{nowLabel}</span> : null}
-      </div>
+        <IconChevronDownOutlineRegular size={13} className={css.statusChevron} />
+      </button>
       <div className={css.iconBar}>
         <button
           type="button"
           className={css.iconButton}
           data-active={searchActive ? '' : undefined}
           aria-expanded={searchActive}
-          aria-controls="watcher-search-row"
+          aria-controls={searchActive ? 'watcher-search-row' : undefined}
           data-watcher-tool="search"
           aria-label={searchActive ? '收起路径搜索' : '搜索工作路径'}
           title={searchActive ? '收起搜索' : '搜索工作路径'}
@@ -61,23 +75,9 @@ export function PanelHeader({
         <button
           type="button"
           className={css.iconButton}
-          data-active={tool === 'stats' ? '' : undefined}
-          aria-expanded={tool === 'stats'}
-          aria-controls="watcher-stats-popover"
-          data-watcher-tool="stats"
-          aria-label={alert ? '查看用量与异常' : '查看用量与耗时'}
-          title="用量与耗时"
-          onClick={onToggleStats}
-        >
-          <IconGaugeOutlineRegular size={14} />
-          {alert ? <span className={css.badge} aria-hidden="true" /> : null}
-        </button>
-        <button
-          type="button"
-          className={css.iconButton}
           data-active={tool === 'menu' ? '' : undefined}
           aria-expanded={tool === 'menu'}
-          aria-controls="watcher-view-menu"
+          aria-controls={tool === 'menu' ? 'watcher-view-menu' : undefined}
           data-watcher-tool="menu"
           aria-label="视图与历史"
           title="视图与历史"

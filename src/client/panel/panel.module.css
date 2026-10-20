@@ -16,12 +16,32 @@
   border-bottom: 1px solid var(--ui-line);
 }
 
-.statusLeft {
+/* The activity line is the timeline's sole affordance: the whole left side of
+ * the bar opens the path, so the toggle reads as part of the status, not as a
+ * fourth toolbar control. */
+.statusToggle {
   display: flex;
   align-items: center;
   gap: 8px;
   flex: 1;
   min-width: 0;
+  height: 30px;
+  margin: 0 -5px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.statusToggle:hover { background: var(--ui-hover); }
+
+.statusToggle:focus-visible {
+  outline: var(--ui-focus-width) solid var(--ui-focus-ring);
+  outline-offset: 1px;
 }
 
 .statusDot {
@@ -60,6 +80,24 @@
   color: var(--ui-text-dimmed);
 }
 
+.statusChevron {
+  flex: none;
+  margin-left: 2px;
+  color: var(--ui-text-dimmed);
+  transition: transform var(--ui-motion-fast) var(--ui-ease);
+}
+
+.statusToggle[data-open] .statusChevron { transform: rotate(180deg); }
+
+/* ── Usage readout (main window) ────────────────────────────────────────── */
+
+/* The turn readout is the panel's main surface now; the path below it is the
+ * secondary window and only exists while it is unfolded. */
+.usageWindow {
+  flex: none;
+  padding: 12px 14px 14px;
+}
+
 .iconBar {
   display: flex;
   align-items: center;
@@ -96,16 +134,6 @@
 .modelSummaryToggle:focus-visible {
   outline: var(--ui-focus-width) solid var(--ui-focus-ring);
   outline-offset: 1px;
-}
-
-.badge {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--ui-state-error);
 }
 
 /* ── Metrics line ───────────────────────────────────────────────────────── */
@@ -178,6 +206,18 @@
   white-space: nowrap;
 }
 
+/* ── Timeline (secondary window) ────────────────────────────────────────── */
+
+.timelineSection {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid var(--ui-line);
+}
+
+.timelineSection[hidden] { display: none; }
+
 /* ── Overlays ───────────────────────────────────────────────────────────── */
 
 .popover {
@@ -190,16 +230,10 @@
   box-shadow: 0 14px 34px rgba(20, 24, 35, .14);
 }
 
-.statsPopover {
-  width: 336px;
-  max-width: calc(100% - 20px);
-  padding: 10px 12px 12px;
-}
-
 .statsEmpty {
   margin: 0;
-  padding: 14px 10px 16px;
-  max-width: 300px;
+  padding: 2px 0 4px;
+  max-width: 320px;
   color: var(--ui-text-secondary);
   font-size: 12px;
   line-height: 18px;
@@ -783,5 +817,6 @@
   .clusterChevron,
   .modelSummaryChevron,
   .itemChevron,
-  .moreChevron { transition: none; }
+  .moreChevron,
+  .statusChevron { transition: none; }
 }

@@ -172,6 +172,12 @@
   background: transparent;
 }
 
+/* Collapsed, the panel is only the usage readout: there is no path to reserve
+ * a minimum height for, so the card shrinks back to its content. */
+.workPicture[data-timeline='closed'] {
+  min-height: 0;
+}
+
 .unread {
   position: absolute;
   bottom: 14px;
@@ -910,6 +916,12 @@
 
 .menu:not(:has(.inspector)) {
     height: min(680px, calc(100vh - 88px));
+  }
+
+/* Folded, the card is only the usage readout and must not keep the tall
+ * viewport-filling height that the timeline needs. */
+.menu:has(.workPicture[data-timeline='closed']):not(:has(.inspector)) {
+    height: auto;
   }
 
 .menu:not(:has(.inspector)) .workPicture {

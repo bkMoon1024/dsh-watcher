@@ -42,12 +42,11 @@ import {
   type DisclosureLayer,
   type DisclosureState,
 } from './disclosure-depth.ts'
-import type { Evidence } from './SessionInsights.tsx'
+import { SessionInsights, type Evidence } from './SessionInsights.tsx'
 import { MetricsStrip } from './panel/MetricsStrip.tsx'
 import { PanelHeader, type PanelTool } from './panel/PanelHeader.tsx'
 import { PathTimeline } from './panel/PathTimeline.tsx'
 import { SearchRow } from './panel/SearchRow.tsx'
-import { StatsPopover } from './panel/StatsPopover.tsx'
 import { ViewMenu } from './panel/ViewMenu.tsx'
 
 export interface WatcherInjected {
@@ -206,9 +205,10 @@ function ReadyWatcher({
   const [olderLoading, setOlderLoading] = useState(false)
   const [pathFilter, setPathFilter] = useState<PathFilter>(EMPTY_PATH_FILTER)
   const filterActive = pathFilterActive(pathFilter)
-  // The panel keeps one tool open at a time: search, the usage overlay, or the
-  // view/history menu. Everything else lives in the path itself.
+  // The panel keeps one tool open at a time: search or the view/history menu.
+  // The usage readout is the main surface and the path opens below it on demand.
   const [activeTool, setActiveTool] = useState<PanelTool>('none')
+  const [timelineOpen, setTimelineOpen] = useState(false)
   const searchVisible = activeTool === 'search' || filterActive
   // A wide panel can show the work path and the open record side by side;
   // narrower ones keep the overlay drawer so neither column gets crushed.
@@ -286,6 +286,7 @@ function ReadyWatcher({
     setDisclosure(resetDisclosureOverrides)
     setPathFilter(EMPTY_PATH_FILTER)
     setActiveTool('none')
+    setTimelineOpen(false)
   }, [sessionId])
 
   useEffect(() => () => {
@@ -308,7 +309,7 @@ function ReadyWatcher({
       cancelAnimationFrame(frame)
       programmaticScrollRef.current = false
     }
-  }, [ui.follow, latestActivityKey, observationMode, open])
+  }, [ui.follow, latestActivityKey, observationMode, open, timelineOpen])
 
   const selected = ui.selectedId === null ? undefined : picture.nodes.find(group => group.id === ui.selectedId)
   const selectionItems = selected?.items ?? []
@@ -369,9 +370,9 @@ function ReadyWatcher({
       : historyLoad.kind === 'complete'
         ? '历史已补齐'
         : null
-  // The overlays hang under the metrics line, or under the search row when it
-  // is visible. Both offsets are the rendered heights, not guesses.
-  const overlayTop = searchVisible ? 118 : 78
+  // The view/history overlay hangs directly under the status bar it is opened
+  // from; the path itself sits below the usage readout.
+  const overlayTop = 50
 
   const selectItem = (group: WorkGroup, item: WorkItem) => {
     clearInspectorExit()
@@ -396,8 +397,8 @@ function ReadyWatcher({
   }
 
   // Escape peels one layer at a time: the open tool first, then the detail,
-  // then the panel. Arrow keys move between the records of the open detail,
-  // but never while a text field has focus.
+  // then the unfolded path, then the panel. Arrow keys move between the records
+  // of the open detail, but never while a text field has focus.
   useEffect(() => {
     if (!open) return
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
@@ -409,6 +410,10 @@ function ReadyWatcher({
         }
         if (selected !== undefined && !inspectorClosing) {
           closeInspector()
+          return
+        }
+        if (timelineOpen) {
+          setTimelineOpen(false)
           return
         }
         setOpen(false)
@@ -438,6 +443,7 @@ function ReadyWatcher({
    */
   const locateEvidence = (e: Evidence) => {
     pinForDisclosure()
+    setTimelineOpen(true)
     setPathFilter(EMPTY_PATH_FILTER)
     setActiveTool('none')
     setDisclosure(chooseDisclosureDepth('detail'))
@@ -600,10 +606,22 @@ function ReadyWatcher({
     setHistoryLoad({ kind: 'idle' })
   }, [historyLoad.kind, snapshot.hasMore])
 
+  /**
+   * Both tools belong to the path, so asking for one unfolds it first: a click
+   * on search or the view menu should never land on a hidden surface.
+   */
   const toggleTool = (tool: Exclude<PanelTool, 'none'>) => {
+    setTimelineOpen(true)
     setActiveTool(current => (current === tool ? 'none' : tool))
   }
   const closeTool = () => setActiveTool('none')
+  const toggleTimeline = () => {
+    const next = !timelineOpen
+    setTimelineOpen(next)
+    // A tool floats over the path; collapsing the path must not leave its
+    // overlay hanging over the usage readout.
+    if (!next) setActiveTool('none')
+  }
 
   return (
     <div ref={rootRef} className={`${tokensCss.tokens} ${tokensCss.series} ${css.root}`} data-dsh-watcher="header">
@@ -653,7 +671,13 @@ function ReadyWatcher({
                 />
               )}
 
-            <section className={css.workPicture} aria-label="Agent 工作路径" data-ud-check="watcher-work-picture" data-ud-role="panel">
+            <section
+              className={css.workPicture}
+              aria-label="Agent 工作路径"
+              data-timeline={timelineOpen ? 'open' : 'closed'}
+              data-ud-check="watcher-work-picture"
+              data-ud-role="panel"
+            >
               <PanelHeader
                 status={summaryState}
                 nowLabel={nowLabel}
@@ -661,45 +685,114 @@ function ReadyWatcher({
                 alert={hasEdgeAlert}
                 searchActive={searchVisible}
                 tool={activeTool}
+                timelineOpen={timelineOpen}
+                onToggleTimeline={toggleTimeline}
                 onToggleSearch={() => toggleTool('search')}
-                onToggleStats={() => toggleTool('stats')}
                 onToggleMenu={() => toggleTool('menu')}
               />
-              <MetricsStrip
-                turns={turnsText}
-                steps={stepsText}
-                actions={actionsText}
-                loadingHint={historyProgress}
-                insights={wholeSessionInsights}
-                running={picture.running}
-                tokensPerSecond={liveTokensPerSecond}
-              />
-              {searchVisible
-                ? (
-                  <SearchRow
-                    filter={pathFilter}
-                    onChange={setPathFilter}
-                    onClear={() => {
-                      setPathFilter(EMPTY_PATH_FILTER)
-                      setActiveTool(current => (current === 'search' ? 'none' : current))
-                    }}
-                  />
-                )
-                : null}
-              {activeTool === 'stats'
-                ? (
-                  <StatsPopover
-                    insights={wholeSessionInsights}
-                    now={now}
-                    running={picture.running}
-                    waiting={picture.pendingCount > 0}
-                    tokensPerSecond={liveTokensPerSecond}
-                    top={overlayTop}
-                    onEvidence={locateEvidence}
-                    onClose={closeTool}
-                  />
-                )
-                : null}
+              <div className={css.usageWindow} id="watcher-usage-window" aria-label="用量与耗时">
+                {wholeSessionInsights === undefined
+                  ? (
+                    <p className={css.statsEmpty}>
+                      还没有可统计的用量。开始一轮对话后，这里会出现耗时分布、模型与花费。
+                    </p>
+                  )
+                  : (
+                    <SessionInsights
+                      flat
+                      value={wholeSessionInsights}
+                      now={now}
+                      running={picture.running}
+                      waiting={picture.pendingCount > 0}
+                      onEvidence={locateEvidence}
+                      tokensPerSecond={liveTokensPerSecond}
+                    />
+                  )}
+              </div>
+              <section
+                id="watcher-timeline-section"
+                className={css.timelineSection}
+                aria-label="执行路径"
+                hidden={!timelineOpen}
+              >
+                <MetricsStrip
+                  turns={turnsText}
+                  steps={stepsText}
+                  actions={actionsText}
+                  loadingHint={historyProgress}
+                  insights={wholeSessionInsights}
+                  running={picture.running}
+                  tokensPerSecond={liveTokensPerSecond}
+                />
+                {searchVisible
+                  ? (
+                    <SearchRow
+                      filter={pathFilter}
+                      onChange={setPathFilter}
+                      onClear={() => {
+                        setPathFilter(EMPTY_PATH_FILTER)
+                        setActiveTool(current => (current === 'search' ? 'none' : current))
+                      }}
+                    />
+                  )
+                  : null}
+                {!ui.follow && ui.unread > 0
+                  ? (
+                    <button
+                      type="button"
+                      className={css.unread}
+                      onClick={selected === undefined ? backToLatest : () => closeInspector(true)}
+                    >
+                      {ui.unread} 条新进展 · 查看最新
+                    </button>
+                  )
+                  : null}
+
+                {picture.nodes.length === 0
+                  ? (
+                    <div className={css.empty}>
+                      <span className={css.emptyEye} aria-hidden="true"><IconLivingEye size={22} /></span>
+                      <strong>还没有工作记录</strong>
+                      <span>第一轮对话开始后，路径会从这里生长</span>
+                    </div>
+                  )
+                  : noFilterMatch
+                    ? (
+                      <div className={css.empty}>
+                        <span className={css.emptyEye} aria-hidden="true"><IconSearchOutlineRegular size={22} /></span>
+                        <strong>没有匹配的记录</strong>
+                        <span>换个关键词，或把筛选切回「全部」</span>
+                      </div>
+                    )
+                    : (
+                      <PathTimeline
+                        turns={visibleTurns}
+                        viewportRef={railRef}
+                        onScroll={onRailScroll}
+                        performanceByTurn={performanceByTurn}
+                        latestTurnNumber={latestTurnNumber}
+                        running={picture.running}
+                        filterActive={filterActive}
+                        filter={pathFilter}
+                        mode={observationMode}
+                        disclosure={disclosure}
+                        lastGroupId={lastGroupId}
+                        lastItemId={lastItemId}
+                        selectedGroupId={ui.selectedId}
+                        selectedItemId={selectedItemId}
+                        hasMore={snapshot.hasMore}
+                        olderLoading={olderLoading}
+                        historyKind={historyLoad.kind}
+                        historyMessage={historyLoad.kind === 'error' ? historyLoad.message : null}
+                        onLoadOlder={startOlderLoad}
+                        onToggleTurn={toggleTurn}
+                        onTogglePhase={togglePhase}
+                        onToggleLayer={toggleLayer}
+                        onToggleReasoning={toggleReasoning}
+                        onSelectItem={selectItem}
+                      />
+                    )}
+              </section>
               {activeTool === 'menu'
                 ? (
                   <ViewMenu
@@ -719,63 +812,6 @@ function ReadyWatcher({
                   />
                 )
                 : null}
-
-              {!ui.follow && ui.unread > 0
-                ? (
-                  <button
-                    type="button"
-                    className={css.unread}
-                    onClick={selected === undefined ? backToLatest : () => closeInspector(true)}
-                  >
-                    {ui.unread} 条新进展 · 查看最新
-                  </button>
-                )
-                : null}
-
-              {picture.nodes.length === 0
-                ? (
-                  <div className={css.empty}>
-                    <span className={css.emptyEye} aria-hidden="true"><IconLivingEye size={22} /></span>
-                    <strong>还没有工作记录</strong>
-                    <span>第一轮对话开始后，路径会从这里生长</span>
-                  </div>
-                )
-                : noFilterMatch
-                  ? (
-                    <div className={css.empty}>
-                      <span className={css.emptyEye} aria-hidden="true"><IconSearchOutlineRegular size={22} /></span>
-                      <strong>没有匹配的记录</strong>
-                      <span>换个关键词，或把筛选切回「全部」</span>
-                    </div>
-                  )
-                  : (
-                    <PathTimeline
-                      turns={visibleTurns}
-                      viewportRef={railRef}
-                      onScroll={onRailScroll}
-                      performanceByTurn={performanceByTurn}
-                      latestTurnNumber={latestTurnNumber}
-                      running={picture.running}
-                      filterActive={filterActive}
-                      filter={pathFilter}
-                      mode={observationMode}
-                      disclosure={disclosure}
-                      lastGroupId={lastGroupId}
-                      lastItemId={lastItemId}
-                      selectedGroupId={ui.selectedId}
-                      selectedItemId={selectedItemId}
-                      hasMore={snapshot.hasMore}
-                      olderLoading={olderLoading}
-                      historyKind={historyLoad.kind}
-                      historyMessage={historyLoad.kind === 'error' ? historyLoad.message : null}
-                      onLoadOlder={startOlderLoad}
-                      onToggleTurn={toggleTurn}
-                      onTogglePhase={togglePhase}
-                      onToggleLayer={toggleLayer}
-                      onToggleReasoning={toggleReasoning}
-                      onSelectItem={selectItem}
-                    />
-                  )}
             </section>
             <div className={css.resizeEdgeRight} aria-hidden="true" onPointerDown={e => geometry.startResize(e, 'x')} />
             <div className={css.resizeEdgeBottom} aria-hidden="true" onPointerDown={e => geometry.startResize(e, 'y')} />

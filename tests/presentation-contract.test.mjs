@@ -67,7 +67,7 @@ test('the Markdown reader is supplied through the declared RC1 client injection'
     'IconChevronLeftOutlineRegular',
     'IconCheckOutlineRegular',
     'IconCopyOutlineRegular',
-    'IconGaugeOutlineRegular',
+    'IconChevronDownOutlineRegular',
     'IconEllipsisOutlineRegular',
     'IconSearchOutlineRegular',
   ]) {
@@ -157,7 +157,7 @@ test('the overview keeps every Step and occurrence reachable through folding and
   assert.doesNotMatch(watcherStyles, /\.groupDot|\.nowTag|\.commandBar/)
 })
 
-test('the panel stays one quiet column: status, scale line, then the path', async () => {
+test('the panel opens on the usage readout and unfolds the path on demand', async () => {
   const [source, panelStyles, timingStyles, watcherStyles] = await Promise.all([
     clientSource,
     readFile(panelStylesSource, 'utf8'),
@@ -165,27 +165,41 @@ test('the panel stays one quiet column: status, scale line, then the path', asyn
     readFile(clientStyles, 'utf8'),
   ])
 
-  // The old command bar, path toolbar and whole HUD are gone. The panel has a
-  // single status row with three tool buttons; search, usage and view/history
-  // open as overlays instead of permanent controls.
+  // The old command bar, path toolbar, whole HUD and usage popover are gone.
+  // The panel opens on the turn usage readout; the path is a secondary surface
+  // behind the activity line, and the tool buttons unfold it first.
   assert.doesNotMatch(source, /commandBar|pathToolbar/)
   assert.match(source, /<PanelHeader/)
   assert.match(source, /<MetricsStrip/)
   assert.match(source, /<PathTimeline/)
   assert.match(source, /<SearchRow/)
   assert.match(source, /<ViewMenu/)
-  assert.match(source, /<StatsPopover/)
   assert.match(source, /data-watcher-tool="search"/)
-  assert.match(source, /data-watcher-tool="stats"/)
+  assert.match(source, /data-watcher-tool="timeline"/)
   assert.match(source, /data-watcher-tool="menu"/)
   assert.match(source, /data-watcher-overlay="search"/)
-  assert.match(source, /data-watcher-overlay="stats"/)
   assert.match(source, /data-watcher-overlay="menu"/)
+  assert.doesNotMatch(source, /<StatsPopover/)
+  assert.doesNotMatch(source, /id="watcher-stats-popover"/)
+  assert.doesNotMatch(source, /data-watcher-overlay="stats"/)
+  assert.doesNotMatch(panelStyles, /\.statsPopover/)
 
-  // Exactly one usage surface, and it lives inside the stats popover.
+  // Exactly one usage surface, and it is the main window: it renders before
+  // the collapsible path, which stays closed until the header unfolds it.
   assert.equal((source.match(/<SessionInsights/g) ?? []).length, 1)
   assert.match(source, /<SessionInsights[\s\S]{0,400}?flat/)
-  assert.match(source, /id="watcher-stats-popover"/)
+  assert.match(source, /id="watcher-usage-window"/)
+  assert.ok(source.includes('id="watcher-timeline-section"'))
+  assert.ok(source.includes('aria-controls="watcher-timeline-section"'))
+  assert.ok(source.includes('aria-expanded={timelineOpen}'))
+  assert.ok(source.includes('hidden={!timelineOpen}'))
+  assert.match(source, /data-timeline=\{timelineOpen \? 'open' : 'closed'\}/)
+  assert.ok(source.indexOf('<PanelHeader') < source.indexOf('<SessionInsights'))
+  assert.ok(source.indexOf('<SessionInsights') < source.indexOf('id="watcher-timeline-section"'))
+  assert.match(panelStyles, /\.timelineSection \{[^}]*display: flex/s)
+  assert.match(panelStyles, /\.timelineSection\[hidden\] \{ display: none; \}/)
+  assert.match(panelStyles, /\.usageWindow \{[^}]*padding/s)
+  assert.match(watcherStyles, /\.workPicture\[data-timeline='closed'\] \{[^}]*min-height: 0/s)
 
   // The status bar owns the only hairline; the scale line stays borderless so
   // it does not read as a second toolbar.
@@ -210,8 +224,8 @@ test('the panel stays one quiet column: status, scale line, then the path', asyn
   assert.match(panelStyles, /\.turnHeader \{[^}]*background: rgb\(from var\(--ui-surface\) r g b \/ 1\)/s)
   assert.match(panelStyles, /\.popover \{[^}]*background: rgb\(from var\(--ui-surface\) r g b \/ 1\)/s)
 
-  // The usage popover is narrower than the old inline readout: its timing
-  // header stacks instead of colliding with the bottleneck sentence.
+  // The usage window is narrower than the old inline readout in a split panel:
+  // its timing header stacks instead of colliding with the bottleneck sentence.
   assert.match(source, /compact=\{flat\}/)
   assert.match(timingStyles, /\.panelBox\.compact \.topRow \{[^}]*flex-wrap: wrap/s)
 })

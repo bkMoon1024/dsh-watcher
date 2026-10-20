@@ -73,16 +73,18 @@ export function SessionInsights({ value, now, running, waiting, onEvidence, toke
   const boxClass = flat ? `${css.hudBox} ${css.hudBoxFlat}` : css.hudBox
 
   return (
-    <section className={`${tokensCss.tokens} ${tokensCss.series} ${boxClass}`} aria-label="耗时分布与运行健康度" data-collapsed={collapsed ? '' : undefined} data-flat={flat ? '' : undefined}>
+    <section className={`${tokensCss.tokens} ${tokensCss.series} ${boxClass}`} aria-label={flat ? '用量与耗时' : '耗时分布与运行健康度'} data-collapsed={collapsed ? '' : undefined} data-flat={flat ? '' : undefined}>
       <div className={css.hudTop}>
         <div className={css.hudHeadRow}>
           <div className={css.hudTopLeft}>
             <span className={css.hudHeading}>
-              {scope === 'turn'
-                ? (turnMissing ? '全会话' : '本轮')
-                : selectedModel
-                  ? `模型: ${routeLabel(selectedModel)}`
-                  : '全会话'}
+              {flat
+                ? '用量与耗时'
+                : scope === 'turn'
+                  ? (turnMissing ? '全会话' : '本轮')
+                  : selectedModel
+                    ? `模型: ${routeLabel(selectedModel)}`
+                    : '全会话'}
             </span>
             {turnMissing
               ? <span className={css.hudHeadingNote} title="本轮尚未开始，以下为全会话累计数据">本轮未开始 · 已显示全会话</span>
