@@ -16,32 +16,14 @@
   border-bottom: 1px solid var(--ui-line);
 }
 
-/* The activity line is the timeline's sole affordance: the whole left side of
- * the bar opens the path, so the toggle reads as part of the status, not as a
- * fourth toolbar control. */
-.statusToggle {
+/* The activity line is a read-out, not a control: what the agent is doing now
+ * is text. The path has its own toggle under the usage readout. */
+.statusLeft {
   display: flex;
   align-items: center;
   gap: 8px;
   flex: 1;
   min-width: 0;
-  height: 30px;
-  margin: 0 -5px;
-  padding: 0 5px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.statusToggle:hover { background: var(--ui-hover); }
-
-.statusToggle:focus-visible {
-  outline: var(--ui-focus-width) solid var(--ui-focus-ring);
-  outline-offset: 1px;
 }
 
 .statusDot {
@@ -79,15 +61,6 @@
   margin: 0 6px;
   color: var(--ui-text-dimmed);
 }
-
-.statusChevron {
-  flex: none;
-  margin-left: 2px;
-  color: var(--ui-text-dimmed);
-  transition: transform var(--ui-motion-fast) var(--ui-ease);
-}
-
-.statusToggle[data-open] .statusChevron { transform: rotate(180deg); }
 
 /* ── Usage readout (main window) ────────────────────────────────────────── */
 
@@ -136,41 +109,63 @@
   outline-offset: 1px;
 }
 
-/* ── Metrics line ───────────────────────────────────────────────────────── */
+/* ── Path toggle (secondary window) ─────────────────────────────────────── */
 
-.metrics {
+/* One quiet row that opens the work path. It sits between the usage readout
+ * and the path itself, so the hairline above it marks where the main window
+ * ends; the counts ride along as the row's caption. */
+.pathToggle {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex: none;
-  padding: 4px 14px 6px;
+  width: 100%;
+  height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-top: 1px solid var(--ui-line);
+  background: transparent;
+  color: var(--ui-text-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pathToggle:hover {
+  background: var(--ui-hover);
+  color: var(--ui-text);
+}
+
+.pathToggle:focus-visible {
+  outline: var(--ui-focus-width) solid var(--ui-focus-ring);
+  outline-offset: -2px;
+}
+
+.pathLabel {
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ui-text);
+}
+
+.pathCounts {
+  min-width: 0;
+  overflow: hidden;
   font-size: 11px;
-  line-height: 16px;
   color: var(--ui-text-tertiary);
   font-variant-numeric: var(--ui-num);
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.metricCounts { color: var(--ui-text-secondary); }
-
-.metricUsage {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.metricDot { color: var(--ui-text-dimmed); }
-.metricCost { color: var(--ui-text-secondary); }
-
-.metricSpeed {
+.pathChevron {
+  flex: none;
   margin-left: auto;
-  color: var(--ui-text-tertiary);
+  color: var(--ui-text-dimmed);
+  transition: transform var(--ui-motion-fast) var(--ui-ease);
 }
 
-.metricSpeed[data-live] { color: var(--ui-live); }
+.pathToggle[data-open] .pathChevron { transform: rotate(180deg); }
 
 /* ── Search row ─────────────────────────────────────────────────────────── */
 
@@ -208,15 +203,25 @@
 
 /* ── Timeline (secondary window) ────────────────────────────────────────── */
 
+/* Closed, the section is just the toggle row. Open, it takes the remaining
+ * panel height and the path scrolls inside it. */
 .timelineSection {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.timelineSection[data-open] { flex: 1 1 auto; }
+
+.timelineBody {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
-  border-top: 1px solid var(--ui-line);
 }
 
-.timelineSection[hidden] { display: none; }
+.timelineBody[hidden] { display: none; }
 
 /* ── Overlays ───────────────────────────────────────────────────────────── */
 
@@ -818,5 +823,5 @@
   .modelSummaryChevron,
   .itemChevron,
   .moreChevron,
-  .statusChevron { transition: none; }
+  .pathChevron { transition: none; }
 }

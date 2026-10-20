@@ -80,91 +80,61 @@
   flex-shrink: 0;
 }
 
-/* 指标条：模型 · 上下文 · Token · 成本 —— 每项一枚淡色胶囊，左侧圆点带分类色 */
-.hudStatRow {
+/* 指标网格：模型 · 上下文 · Token · 成本 —— 标签在上、数值在下，无胶囊无底色 */
+.statGrid {
   display: flex;
-  align-items: center;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 12px 28px;
   min-width: 0;
-  font-size: 11px;
-  color: var(--ui-text-secondary);
 }
 
-.hudStatRow > * {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
+.statCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 120px;
   min-width: 0;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--hue, var(--ui-text-tertiary)) 13%, transparent);
-  white-space: nowrap;
-  font-variant-numeric: var(--ui-num);
-  color: var(--ui-text-secondary);
 }
 
-.hudStatRow > *::before {
-  content: '';
-  flex-shrink: 0;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--hue, var(--ui-text-tertiary));
-}
+/* The model name is the only value without a natural bound, so it gets the
+ * extra room; the numeric columns stay even. */
+.statCell[data-metric='model'] { flex: 1.8 1 190px; }
 
-.hudStatRow strong {
-  color: var(--ui-text);
-  font-weight: 600;
-}
-
-/* 每个指标一种色相，与图表分类色同源：模型=强调色，上下文=青，Token=紫，成本=琥珀 */
-.hudStatRow > [data-metric='model'] { --hue: var(--ui-chart-1); }
-.hudStatRow > [data-metric='context'] { --hue: var(--ui-chart-2); }
-.hudStatRow > [data-metric='tokens'] { --hue: var(--ui-chart-6); }
-.hudStatRow > [data-metric='cost'] { --hue: var(--ui-chart-3); }
-
-.currentModelTag {
-  min-width: 0;
-  max-width: 100%;
-  flex-shrink: 1;
-}
-
-.modelTagText {
-  font-weight: 600;
-  color: var(--ui-text);
+.statLabel {
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-.effortTag {
   font-size: 11px;
-  font-weight: 600;
-  color: var(--ui-accent);
-  background: color-mix(in srgb, var(--ui-accent) 14%, transparent);
-  padding: 0 5px;
-  border-radius: 999px;
   line-height: 14px;
+  color: var(--ui-text-tertiary);
   white-space: nowrap;
-  flex-shrink: 0;
+  text-overflow: ellipsis;
 }
 
-.contextTag,
-.tokenStat,
-.costStat {
-  font-size: 11px;
-  color: var(--ui-text-secondary);
+.statValue {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  color: var(--ui-text);
   font-variant-numeric: var(--ui-num);
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.contextTag strong,
-.tokenStat strong,
-.costStat strong {
-  color: var(--ui-text);
-  font-weight: 600;
+.statUnit {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ui-text-tertiary);
+}
+
+.statNote {
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--ui-text-tertiary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .collapseBtn:focus-visible {
@@ -234,79 +204,78 @@
   padding: 10px 14px;
 }
 
-/* 异常提醒卡片：状态色只出现在左边条与标签上 */
+/* 异常提醒：安静的列表行，状态色只留在圆点上 */
 .alertSection {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-top: 8px;
+  margin-top: 12px;
+  border-top: 1px solid var(--ui-line);
 }
 
-.alertCard {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 7px 10px;
-  border-radius: 8px;
-  background: var(--ui-surface-raised);
-  border: 1px solid var(--ui-line);
-  border-left: 3px solid var(--ui-state-warn);
-}
-
-.alertCardDanger {
-  border-left-color: var(--ui-state-error);
-}
-
-.alertLeft {
+.alertRow {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 0;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--ui-line);
 }
 
-.alertTag {
-  flex-shrink: 0;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 1px 6px;
-  border-radius: 999px;
-  line-height: 15px;
-  white-space: nowrap;
+.alertDot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ui-state-warn);
 }
 
-.tagWarn {
-  color: var(--ui-state-warn);
-  background: color-mix(in srgb, var(--ui-state-warn) 12%, transparent);
-}
-
-.tagDanger {
-  color: var(--ui-state-error);
-  background: color-mix(in srgb, var(--ui-state-error) 12%, transparent);
-}
+.alertRow[data-danger] .alertDot { background: var(--ui-state-error); }
 
 .alertTexts {
   display: flex;
+  flex: 1;
   flex-direction: column;
   min-width: 0;
   gap: 1px;
 }
 
 .alertMainText {
+  overflow: hidden;
   font-size: 12px;
   font-weight: 600;
   color: var(--ui-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .alertSubText {
+  overflow: hidden;
   font-size: 11px;
   color: var(--ui-text-tertiary);
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.alertAction {
+  flex: none;
+  padding: 2px 6px;
+  margin-right: -6px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ui-text-secondary);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.alertAction:hover {
+  background: var(--ui-hover);
+  color: var(--ui-text);
+}
+
+.alertAction:focus-visible {
+  outline: var(--ui-focus-width) solid var(--ui-focus-ring);
+  outline-offset: 1px;
 }
 
 
@@ -2191,16 +2160,28 @@
 
 
 
-/* A popover readout drops the inline card chrome: the overlay already owns
- * the surface, border and shadow. */
+/* A flat readout is the panel's main window: no card chrome, no accent bar —
+ * the readout sits directly on the panel surface like native content. */
 .hudBoxFlat {
   border-bottom: none;
   background: transparent;
 }
 
 .hudBoxFlat .hudTop {
-  padding: 0 0 8px;
+  gap: 14px;
+  padding: 0 0 2px;
+  background: transparent;
+  border-bottom: none;
 }
+
+.hudBoxFlat .hudHeading {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ui-text-tertiary);
+  letter-spacing: .02em;
+}
+
+.hudBoxFlat .hudHeading::before { display: none; }
 
 .hudBoxFlat .hudBody {
   padding: 0;

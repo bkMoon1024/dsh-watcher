@@ -158,11 +158,12 @@ test('the overview keeps every Step and occurrence reachable through folding and
 })
 
 test('the panel opens on the usage readout and unfolds the path on demand', async () => {
-  const [source, panelStyles, timingStyles, watcherStyles] = await Promise.all([
+  const [source, panelStyles, timingStyles, watcherStyles, insightsStyles] = await Promise.all([
     clientSource,
     readFile(panelStylesSource, 'utf8'),
     readFile(timingStylesSource, 'utf8'),
     readFile(clientStyles, 'utf8'),
+    readFile(settingsStyles, 'utf8'),
   ])
 
   // The old command bar, path toolbar, whole HUD and usage popover are gone.
@@ -170,7 +171,8 @@ test('the panel opens on the usage readout and unfolds the path on demand', asyn
   // behind the activity line, and the tool buttons unfold it first.
   assert.doesNotMatch(source, /commandBar|pathToolbar/)
   assert.match(source, /<PanelHeader/)
-  assert.match(source, /<MetricsStrip/)
+  // The counts ride on the path toggle now; the separate scale line is gone.
+  assert.doesNotMatch(source, /<MetricsStrip/)
   assert.match(source, /<PathTimeline/)
   assert.match(source, /<SearchRow/)
   assert.match(source, /<ViewMenu/)
@@ -190,22 +192,28 @@ test('the panel opens on the usage readout and unfolds the path on demand', asyn
   assert.match(source, /<SessionInsights[\s\S]{0,400}?flat/)
   assert.match(source, /id="watcher-usage-window"/)
   assert.ok(source.includes('id="watcher-timeline-section"'))
-  assert.ok(source.includes('aria-controls="watcher-timeline-section"'))
+  assert.ok(source.includes('aria-controls="watcher-timeline-body"'))
   assert.ok(source.includes('aria-expanded={timelineOpen}'))
   assert.ok(source.includes('hidden={!timelineOpen}'))
+  assert.ok(source.includes('data-open={timelineOpen ? \'\' : undefined}'))
+  // The status bar is plain text; the path has its own toggle below the readout.
+  assert.doesNotMatch(source, /data-watcher-tool="timeline"[\s\S]{0,600}?<PanelHeader/)
   assert.match(source, /data-timeline=\{timelineOpen \? 'open' : 'closed'\}/)
   assert.ok(source.indexOf('<PanelHeader') < source.indexOf('<SessionInsights'))
   assert.ok(source.indexOf('<SessionInsights') < source.indexOf('id="watcher-timeline-section"'))
+  assert.ok(source.indexOf('className={css.pathToggle}') < source.indexOf('id="watcher-timeline-body"'))
   assert.match(panelStyles, /\.timelineSection \{[^}]*display: flex/s)
-  assert.match(panelStyles, /\.timelineSection\[hidden\] \{ display: none; \}/)
+  assert.match(panelStyles, /\.timelineBody\[hidden\] \{ display: none; \}/)
+  assert.match(panelStyles, /\.pathToggle \{[^}]*border-top: 1px solid var\(--ui-line\)/s)
+  assert.match(panelStyles, /\.pathToggle\[data-open\] \.pathChevron/)
   assert.match(panelStyles, /\.usageWindow \{[^}]*padding/s)
   assert.match(watcherStyles, /\.workPicture\[data-timeline='closed'\] \{[^}]*min-height: 0/s)
 
-  // The status bar owns the only hairline; the scale line stays borderless so
-  // it does not read as a second toolbar.
+  // The status bar owns the only hairline; the path toggle is the border between
+  // the usage readout and the unfolded path, not a second toolbar.
   assert.match(panelStyles, /\.statusBar \{[^}]*border-bottom/s)
-  assert.match(panelStyles, /\.metrics \{[^}]*display: flex/s)
-  assert.doesNotMatch(panelStyles, /\.metrics \{[^}]*border-bottom/s)
+  assert.match(panelStyles, /\.pathToggle \{[^}]*display: flex/s)
+  assert.doesNotMatch(panelStyles, /\.metrics \{/)
   assert.match(watcherStyles, /\.menu \{[\s\S]*?z-index: 1100;/)
 
   // Toggle rows place a variable number of chips (signals, tags, meta) after
@@ -228,6 +236,15 @@ test('the panel opens on the usage readout and unfolds the path on demand', asyn
   // its timing header stacks instead of colliding with the bottleneck sentence.
   assert.match(source, /compact=\{flat\}/)
   assert.match(timingStyles, /\.panelBox\.compact \.topRow \{[^}]*flex-wrap: wrap/s)
+
+  // The readout's numbers are a label-over-value grid, not tinted pills, and
+  // the alerts are quiet rows that do not import a host button into the panel.
+  assert.match(source, /className=\{css\.statGrid\}/)
+  assert.match(insightsStyles, /\.statGrid \{[^}]*display: flex/s)
+  assert.match(insightsStyles, /\.statCell\[data-metric='model'\]/)
+  assert.match(source, /className=\{css\.alertRow\}/)
+  assert.match(insightsStyles, /\.alertRow\[data-danger\] \.alertDot/)
+  assert.doesNotMatch(source, /<Button variant="outline"/)
 })
 
 test('each settings section keeps a mounted tabpanel too', async () => {

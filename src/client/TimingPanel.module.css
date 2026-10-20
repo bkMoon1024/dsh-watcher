@@ -297,24 +297,88 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* The usage popover is narrower than the old inline readout: stack the header
-   instead of letting the bottleneck text collide with the title. */
+/* The usage readout is flat: its surface is the panel itself, so the box drops
+ * its border, fill and padding, and the chart shrinks to a hairline bar. */
+.panelBox.compact {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
 .panelBox.compact .topRow {
+  align-items: baseline;
   flex-wrap: wrap;
-  align-items: flex-start;
-  row-gap: 4px;
+  gap: 4px 10px;
+  margin-bottom: 10px;
+  white-space: normal;
 }
 
 .panelBox.compact .titleArea {
-  flex: 1 1 100%;
+  flex: 1 1 auto;
   flex-wrap: wrap;
+  gap: 4px 10px;
   white-space: normal;
-  row-gap: 4px;
+}
+
+.panelBox.compact .mainTitle {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ui-text-tertiary);
+  letter-spacing: .02em;
+}
+
+.panelBox.compact .liveSpeed {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ui-text-secondary);
+}
+
+.panelBox.compact .totalDuration {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--ui-text-tertiary);
 }
 
 .panelBox.compact .bottleneckText {
+  order: 3;
   flex: 1 1 100%;
-  white-space: normal;
+  font-size: 12px;
   font-weight: 500;
-  color: var(--ui-text-secondary);
+  color: var(--ui-text);
+  white-space: normal;
+}
+
+.panelBox.compact .chartBox { margin-bottom: 10px; }
+
+.panelBox.compact .barTrack {
+  height: 8px;
+  border-radius: 999px;
+  gap: 2px;
+}
+
+.panelBox.compact .slice + .slice { border-left: 0; }
+
+.panelBox.compact .dot { border-radius: 50%; }
+
+.panelBox.compact .legendRow {
+  row-gap: 4px;
+  font-size: 11px;
+}
+
+.panelBox.compact .statusPill {
+  padding: 0;
+  background: transparent;
+  font-weight: 500;
+}
+
+.panelBox.compact .statusPill::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
 }

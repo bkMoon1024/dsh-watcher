@@ -1,14 +1,13 @@
-import { IconChevronDownOutlineRegular, IconEllipsisOutlineRegular, IconSearchOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconEllipsisOutlineRegular, IconSearchOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import css from './panel.module.css'
 
 /** Which tools the status bar currently has open; only one at a time. */
 export type PanelTool = 'none' | 'search' | 'menu'
 
 /**
- * The one persistent row of the panel. The activity line doubles as the button
- * that unfolds the work path under the usage readout: the stats stay in view,
- * the path opens on demand. Search and the view/history menu stay quiet icons,
- * and unfold the path themselves when it is collapsed.
+ * The one persistent row of the panel, and a plain read-out: what the agent is
+ * doing right now. Opening the work path is a separate control under the usage
+ * readout, so this bar never moves when the path folds or unfolds.
  */
 export function PanelHeader({
   status,
@@ -17,8 +16,6 @@ export function PanelHeader({
   alert,
   searchActive,
   tool,
-  timelineOpen,
-  onToggleTimeline,
   onToggleSearch,
   onToggleMenu,
 }: {
@@ -28,24 +25,12 @@ export function PanelHeader({
   alert: boolean
   searchActive: boolean
   tool: PanelTool
-  timelineOpen: boolean
-  onToggleTimeline: () => void
   onToggleSearch: () => void
   onToggleMenu: () => void
 }) {
   return (
     <header className={css.statusBar}>
-      <button
-        type="button"
-        className={css.statusToggle}
-        data-open={timelineOpen ? '' : undefined}
-        data-watcher-tool="timeline"
-        aria-expanded={timelineOpen}
-        aria-controls="watcher-timeline-section"
-        aria-label={timelineOpen ? `收起执行路径，${status}` : `展开执行路径，${status}`}
-        title={timelineOpen ? '收起执行路径' : '展开执行路径'}
-        onClick={onToggleTimeline}
-      >
+      <div className={css.statusLeft}>
         <span
           className={css.statusDot}
           data-state={running ? 'running' : alert ? 'alert' : 'idle'}
@@ -56,8 +41,7 @@ export function PanelHeader({
             down to the state word. */}
         <span className={css.statusText} aria-live="polite" data-alert={alert ? '' : undefined}>{status}</span>
         {running ? <span className={css.statusNow} aria-hidden="true" title={nowLabel}>{nowLabel}</span> : null}
-        <IconChevronDownOutlineRegular size={13} className={css.statusChevron} />
-      </button>
+      </div>
       <div className={css.iconBar}>
         <button
           type="button"

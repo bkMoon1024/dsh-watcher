@@ -121,7 +121,7 @@ export function TimingPanel({
       {/* 顶行：标题 + 实时推流速度 + 轮次总耗时 */}
       <div className={css.topRow}>
         <div className={css.titleArea}>
-          <span className={css.mainTitle}>耗时分布与瓶颈</span>
+          <span className={css.mainTitle}>{compact ? '耗时分布' : '耗时分布与瓶颈'}</span>
           {tokensPerSecond && tokensPerSecond > 0 ? (
             <span className={css.liveSpeed} title="当前模型实际流式生成吞吐">
               <i className={css.speedDot} />

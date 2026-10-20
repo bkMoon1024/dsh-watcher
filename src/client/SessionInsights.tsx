@@ -6,7 +6,6 @@ import { estimateFromInsights, formatEstimate, formatEstimateNote } from '../ins
 // @ts-ignore TS7016: no declarations for the local .mjs module
 import { costCopy } from '../insights/i18n.mjs'
 import type { InsightsView } from '../insights/projection.ts'
-import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import css from './Insights.module.css'
 import tokensCss from './ui/tokens.module.css'
 import { TimingPanel } from './TimingPanel.tsx'
@@ -132,24 +131,27 @@ export function SessionInsights({ value, now, running, waiting, onEvidence, toke
               )}
           </div>
         </div>
-        <div className={css.hudStatRow}>
+        <div className={css.statGrid}>
           {scope === 'turn' && currentRoute?.model ? (
-            <span className={css.currentModelTag} data-metric="model" title={routeLabel(currentRoute)}>
-              <strong className={css.modelTagText}>{routeLabel(currentRoute)}</strong>
-              {currentRoute.effort ? (
-                <span className={css.effortTag}>思考: {effortLabel(currentRoute.effort)}</span>
-              ) : null}
-            </span>
+            <div className={css.statCell} data-metric="model">
+              <span className={css.statLabel}>模型</span>
+              <span className={css.statValue} title={routeLabel(currentRoute)}>{routeLabel(currentRoute)}</span>
+              {currentRoute.effort ? <span className={css.statNote}>思考 {effortLabel(currentRoute.effort)}</span> : null}
+            </div>
           ) : null}
-          <span className={css.contextTag} data-metric="context">
-            {scope === 'turn' ? '上下文' : '累计输入'} <strong>{fmt(stats.input ?? 0)}</strong> Token
-          </span>
-          <span className={css.tokenStat} data-metric="tokens">
-            <strong>{fmt(stats.tokens ?? 0)}</strong> Token · {cachePct}% 命中
-          </span>
-          <span className={css.costStat} data-metric="cost" title={costTitle} aria-label={`${copy.estimatedCost}: ${costText}`}>
-            {copy.estimatedCost} <strong>{costText}</strong>
-          </span>
+          <div className={css.statCell} data-metric="context">
+            <span className={css.statLabel}>{scope === 'turn' ? '上下文' : '累计输入'}</span>
+            <span className={css.statValue}>{fmt(stats.input ?? 0)}<span className={css.statUnit}> Token</span></span>
+          </div>
+          <div className={css.statCell} data-metric="tokens">
+            <span className={css.statLabel}>Token</span>
+            <span className={css.statValue}>{fmt(stats.tokens ?? 0)}</span>
+            <span className={css.statNote}>{cachePct}% 命中</span>
+          </div>
+          <div className={css.statCell} data-metric="cost">
+            <span className={css.statLabel}>{copy.estimatedCost}</span>
+            <span className={css.statValue} title={costTitle} aria-label={`${copy.estimatedCost}: ${costText}`}>{costText}</span>
+          </div>
         </div>
       </div>
       {!collapsed && scope === 'session' && isMultiModel ? (
@@ -175,19 +177,14 @@ export function SessionInsights({ value, now, running, waiting, onEvidence, toke
           <div className={css.alertSection} aria-live="polite">
             {alerts.map((a: Evidence & { id: string; title: string; detail: string; kind?: string }) => {
               const isRepeat = a.kind === 'repeated-failure' || a.id.startsWith('repeat')
-              const isSilence = a.id === 'silence'
-              const isReason = a.id === 'reasoning-span'
-              const tag = isRepeat ? '连续报错' : isSilence ? '网络停顿' : isReason ? '思考超时' : '异常'
               return (
-                <div key={a.id} className={`${css.alertCard} ${isRepeat ? css.alertCardDanger : css.alertCardWarn}`}>
-                  <div className={css.alertLeft}>
-                    <span className={`${css.alertTag} ${isRepeat ? css.tagDanger : css.tagWarn}`}>{tag}</span>
-                    <div className={css.alertTexts}>
-                      <strong className={css.alertMainText}>{a.title}</strong>
-                      <span className={css.alertSubText}>{a.detail}</span>
-                    </div>
+                <div key={a.id} className={css.alertRow} data-danger={isRepeat ? '' : undefined}>
+                  <span className={css.alertDot} aria-hidden="true" />
+                  <div className={css.alertTexts}>
+                    <strong className={css.alertMainText}>{a.title}</strong>
+                    <span className={css.alertSubText}>{a.detail}</span>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => onEvidence(a)}>定位现场</Button>
+                  <button type="button" className={css.alertAction} onClick={() => onEvidence(a)}>定位现场</button>
                 </div>
               )
             })}

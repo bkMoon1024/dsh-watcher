@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type {} from '@deepseek-ai/dsh-client-ui-chat/client'
 import type {} from '@deepseek-ai/dsh-session-stats/client'
-import { IconSearchOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconChevronDownOutlineRegular, IconSearchOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
@@ -43,7 +43,6 @@ import {
   type DisclosureState,
 } from './disclosure-depth.ts'
 import { SessionInsights, type Evidence } from './SessionInsights.tsx'
-import { MetricsStrip } from './panel/MetricsStrip.tsx'
 import { PanelHeader, type PanelTool } from './panel/PanelHeader.tsx'
 import { PathTimeline } from './panel/PathTimeline.tsx'
 import { SearchRow } from './panel/SearchRow.tsx'
@@ -622,6 +621,11 @@ function ReadyWatcher({
     // overlay hanging over the usage readout.
     if (!next) setActiveTool('none')
   }
+  // Closing the path also shrinks the card to its read-out: the persisted drag
+  // height would otherwise leave the collapsed panel mostly empty.
+  const panelStyle = timelineOpen
+    ? geometry.style
+    : { ...geometry.style, height: 'auto', maxHeight: 'min(680px, calc(100vh - 24px))' }
 
   return (
     <div ref={rootRef} className={`${tokensCss.tokens} ${tokensCss.series} ${css.root}`} data-dsh-watcher="header">
@@ -645,7 +649,7 @@ function ReadyWatcher({
           <div
             ref={panelRef}
             className={`${tokensCss.tokens} ${tokensCss.series} ${css.menu}`}
-            style={geometry.style}
+            style={panelStyle}
             data-sized={geometry.sized ? '' : undefined}
             data-resizing={geometry.resizing ? '' : undefined}
             data-split={splitView && selected !== undefined ? '' : undefined}
@@ -685,8 +689,6 @@ function ReadyWatcher({
                 alert={hasEdgeAlert}
                 searchActive={searchVisible}
                 tool={activeTool}
-                timelineOpen={timelineOpen}
-                onToggleTimeline={toggleTimeline}
                 onToggleSearch={() => toggleTool('search')}
                 onToggleMenu={() => toggleTool('menu')}
               />
@@ -713,17 +715,25 @@ function ReadyWatcher({
                 id="watcher-timeline-section"
                 className={css.timelineSection}
                 aria-label="执行路径"
-                hidden={!timelineOpen}
+                data-open={timelineOpen ? '' : undefined}
               >
-                <MetricsStrip
-                  turns={turnsText}
-                  steps={stepsText}
-                  actions={actionsText}
-                  loadingHint={historyProgress}
-                  insights={wholeSessionInsights}
-                  running={picture.running}
-                  tokensPerSecond={liveTokensPerSecond}
-                />
+                <button
+                  type="button"
+                  className={css.pathToggle}
+                  data-open={timelineOpen ? '' : undefined}
+                  data-watcher-tool="timeline"
+                  aria-expanded={timelineOpen}
+                  aria-controls="watcher-timeline-body"
+                  title={timelineOpen ? '收起执行路径' : '展开执行路径'}
+                  onClick={toggleTimeline}
+                >
+                  <span className={css.pathLabel}>执行路径</span>
+                  <span className={css.pathCounts} title={historyProgress}>
+                    {turnsText} · {stepsText} · {actionsText}
+                  </span>
+                  <IconChevronDownOutlineRegular size={13} className={css.pathChevron} />
+                </button>
+                <div id="watcher-timeline-body" className={css.timelineBody} hidden={!timelineOpen}>
                 {searchVisible
                   ? (
                     <SearchRow
@@ -792,6 +802,7 @@ function ReadyWatcher({
                         onSelectItem={selectItem}
                       />
                     )}
+                </div>
               </section>
               {activeTool === 'menu'
                 ? (
@@ -813,15 +824,21 @@ function ReadyWatcher({
                 )
                 : null}
             </section>
-            <div className={css.resizeEdgeRight} aria-hidden="true" onPointerDown={e => geometry.startResize(e, 'x')} />
-            <div className={css.resizeEdgeBottom} aria-hidden="true" onPointerDown={e => geometry.startResize(e, 'y')} />
-            <div
-              className={css.resizeGrip}
-              aria-hidden="true"
-              title="拖动调整大小 · 双击恢复默认尺寸"
-              onPointerDown={e => geometry.startResize(e, 'both')}
-              onDoubleClick={geometry.resetSize}
-            />
+            {timelineOpen
+              ? (
+                <>
+                  <div className={css.resizeEdgeRight} aria-hidden="true" onPointerDown={e => geometry.startResize(e, 'x')} />
+                  <div className={css.resizeEdgeBottom} aria-hidden="true" onPointerDown={e => geometry.startResize(e, 'y')} />
+                  <div
+                    className={css.resizeGrip}
+                    aria-hidden="true"
+                    title="拖动调整大小 · 双击恢复默认尺寸"
+                    onPointerDown={e => geometry.startResize(e, 'both')}
+                    onDoubleClick={geometry.resetSize}
+                  />
+                </>
+              )
+              : null}
           </div>,
           document.body,
         )
