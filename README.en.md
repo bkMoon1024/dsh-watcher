@@ -11,7 +11,7 @@
 Open **Settings → Plugins → Add plugin** and enter this in “Package name or address”:
 
 ```text
-github:daha1216/dsh-watcher#v0.6.3
+github:daha1216/dsh-watcher#v0.7.0
 ```
 
 The desktop plugin manager owns the Desktop profile and bundled package manager. This release commits `lib/`; normal use needs no clone, build, or DSHX installation. Follow the app if it asks you to reload or reopen after installation.
@@ -19,7 +19,7 @@ The desktop plugin manager owns the Desktop profile and bundled package manager.
 ### Web CLI
 
 ```sh
-dsh plugin --profile web add github:daha1216/dsh-watcher#v0.6.3
+dsh plugin --profile web add github:daha1216/dsh-watcher#v0.7.0
 ```
 
 This official CLI command writes only the `web` profile; it cannot modify the Desktop App profile. For an already-running Web Host, reopen that Host once and reload the page.
@@ -40,9 +40,9 @@ It does not inject messages, invent hidden chain-of-thought, or replace the offi
 
 ![Grouped: edit package.json ×2, still steps 5 and 6 when opened](docs/screenshots/grouped.png)
 
-> The screenshots are from 0.6.2. Two header passes have landed since (the 0.6.3 command bar, then the unreleased status bar + scale line + single-line timeline), so the captures are further behind than the text.
+> The screenshots are from 0.6.2. Two header passes have landed since (the 0.6.3 command bar, then the 0.7.0 status bar, flat usage readout and foldable execution path), so the captures are further behind than the text.
 
-![Design comparison (top: 0.6.3; bottom: the unreleased refactor; mockup, not a live capture)](docs/screenshots/panel-redesign.png)
+![Design comparison (top: 0.6.3; bottom: the 0.7.0 refactor; mockup, not a live capture)](docs/screenshots/panel-redesign.png)
 
 Grouped view only stacks what it can prove. Two different bash calls stay apart. The model stage shows only provider-visible reasoning already written into the Session. If nothing was recorded, it says so.
 

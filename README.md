@@ -11,7 +11,7 @@
 打开 **设置 → 插件 → 添加插件**，在“包名或地址”中输入：
 
 ```text
-github:daha1216/dsh-watcher#v0.6.3
+github:daha1216/dsh-watcher#v0.7.0
 ```
 
 桌面端插件管理器负责 Desktop profile 和内置包管理器。本发布已提交 `lib/`；普通使用不需要 clone、构建或安装 DSHX。若应用提示刷新或重新打开，请按提示完成。
@@ -19,7 +19,7 @@ github:daha1216/dsh-watcher#v0.6.3
 ### Web CLI
 
 ```sh
-dsh plugin --profile web add github:daha1216/dsh-watcher#v0.6.3
+dsh plugin --profile web add github:daha1216/dsh-watcher#v0.7.0
 ```
 
 这条官方 CLI 命令只写入 `web` profile，不能修改 Desktop App 的 profile。对于已经运行的 Web Host，请重新打开该 Host 一次，再刷新网页。
@@ -40,9 +40,9 @@ DeepSeek Harness Web 的只读插件。点会话标题栏里的眼睛，把 Sess
 
 ![归类：修改 package.json ×2，展开仍是步骤 5 和 6](docs/screenshots/grouped.png)
 
-> 截图取自 0.6.2。此后又换了两轮版式：0.6.3 的命令栏，以及未发布的状态条、指标线与单行时间线重构；截图待补。
+> 截图取自 0.6.2。此后版式又换了两轮：0.6.3 的命令栏，以及 0.7.0 的状态条、扁平用量读数与可折叠执行路径；截图待补。
 
-![新版式设计对照（上：0.6.3；下：未发布重构；设计稿，非实机截图）](docs/screenshots/panel-redesign.png)
+![新版式设计对照（上：0.6.3；下：0.7.0 重构；设计稿，非实机截图）](docs/screenshots/panel-redesign.png)
 
 归类只叠能证明相同的调用。两条不同的 bash 不会被捏在一起。模型阶段只显示供应商已经写进 Session 的可见 reasoning；没有记录就写未记录。
 
