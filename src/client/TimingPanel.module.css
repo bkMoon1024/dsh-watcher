@@ -317,15 +317,15 @@
 .panelBox.compact .titleArea {
   flex: 1 1 auto;
   flex-wrap: wrap;
-  gap: 4px 10px;
+  align-items: baseline;
+  gap: 4px 8px;
   white-space: normal;
 }
 
+/* The duration leads the row: it is the number being read, not a caption above
+ * it. The quiet section label only earns its space in the wide inspector. */
 .panelBox.compact .mainTitle {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--ui-text-tertiary);
-  letter-spacing: .02em;
+  display: none;
 }
 
 .panelBox.compact .liveSpeed {
@@ -338,9 +338,11 @@
 }
 
 .panelBox.compact .totalDuration {
-  margin-left: auto;
-  font-size: 11px;
-  color: var(--ui-text-tertiary);
+  order: -1;
+  margin-left: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ui-text);
 }
 
 .panelBox.compact .bottleneckText {

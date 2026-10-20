@@ -70,6 +70,13 @@ export function SessionInsights({ value, now, running, waiting, onEvidence, toke
   const costTitle = costNote ? `${copy.estimatedCost}: ${costText} · ${costNote}` : `${copy.estimatedCost}: ${costText}`
 
   const boxClass = flat ? `${css.hudBox} ${css.hudBoxFlat}` : css.hudBox
+  // The model itself is the value; provider and thinking level are context, so a
+  // long route label never truncates the number that matters.
+  const routeTitle = currentRoute ? routeLabel(currentRoute) : ''
+  const modelName = currentRoute?.model || routeTitle
+  const modelNote = [currentRoute?.provider, currentRoute?.effort ? `思考 ${effortLabel(currentRoute.effort)}` : null]
+    .filter(Boolean)
+    .join(' · ')
 
   return (
     <section className={`${tokensCss.tokens} ${tokensCss.series} ${boxClass}`} aria-label={flat ? '用量与耗时' : '耗时分布与运行健康度'} data-collapsed={collapsed ? '' : undefined} data-flat={flat ? '' : undefined}>
@@ -135,8 +142,8 @@ export function SessionInsights({ value, now, running, waiting, onEvidence, toke
           {scope === 'turn' && currentRoute?.model ? (
             <div className={css.statCell} data-metric="model">
               <span className={css.statLabel}>模型</span>
-              <span className={css.statValue} title={routeLabel(currentRoute)}>{routeLabel(currentRoute)}</span>
-              {currentRoute.effort ? <span className={css.statNote}>思考 {effortLabel(currentRoute.effort)}</span> : null}
+              <span className={css.statValue} title={routeTitle}>{modelName}</span>
+              {modelNote ? <span className={css.statNote}>{modelNote}</span> : null}
             </div>
           ) : null}
           <div className={css.statCell} data-metric="context">

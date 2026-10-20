@@ -178,6 +178,45 @@
   min-height: 0;
 }
 
+/* Shell layout around the two windows the panel composes: the usage readout,
+ * then the path section with its toggle row and optional scroll body. These
+ * live here, next to the elements Watcher.tsx renders, so their class names
+ * resolve against the CSS module that actually styles them. */
+.usageWindow {
+  flex: none;
+  padding: 12px 14px 14px;
+}
+
+.statsEmpty {
+  margin: 0;
+  padding: 2px 0 4px;
+  max-width: 320px;
+  color: var(--ui-text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  text-wrap: pretty;
+}
+
+/* Closed, the section is just the toggle row. Open, it takes the remaining
+ * panel height and the path scrolls inside it. */
+.timelineSection {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.timelineSection[data-open] { flex: 1 1 auto; }
+
+.timelineBody {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.timelineBody[hidden] { display: none; }
+
 .unread {
   position: absolute;
   bottom: 14px;

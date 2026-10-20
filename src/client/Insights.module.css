@@ -84,21 +84,22 @@
 .statGrid {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 28px;
+  align-items: flex-start;
+  gap: 10px 24px;
   min-width: 0;
 }
 
 .statCell {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  flex: 1 1 120px;
+  gap: 3px;
+  flex: 1 1 0;
   min-width: 0;
 }
 
 /* The model name is the only value without a natural bound, so it gets the
  * extra room; the numeric columns stay even. */
-.statCell[data-metric='model'] { flex: 1.8 1 190px; }
+.statCell[data-metric='model'] { flex: 1.6 1 0; }
 
 .statLabel {
   overflow: hidden;
@@ -2168,8 +2169,8 @@
 }
 
 .hudBoxFlat .hudTop {
-  gap: 14px;
-  padding: 0 0 2px;
+  gap: 10px;
+  padding: 0 0 10px;
   background: transparent;
   border-bottom: none;
 }
@@ -2184,6 +2185,9 @@
 .hudBoxFlat .hudHeading::before { display: none; }
 
 .hudBoxFlat .hudBody {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   padding: 0;
 }
 

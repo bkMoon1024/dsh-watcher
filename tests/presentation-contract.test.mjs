@@ -193,20 +193,20 @@ test('the panel opens on the usage readout and unfolds the path on demand', asyn
   assert.match(source, /id="watcher-usage-window"/)
   assert.ok(source.includes('id="watcher-timeline-section"'))
   assert.ok(source.includes('aria-controls="watcher-timeline-body"'))
-  assert.ok(source.includes('aria-expanded={timelineOpen}'))
+  assert.ok(source.includes('aria-expanded={open}'))
   assert.ok(source.includes('hidden={!timelineOpen}'))
-  assert.ok(source.includes('data-open={timelineOpen ? \'\' : undefined}'))
+  assert.ok(source.includes('data-open={open ? \'\' : undefined}'))
   // The status bar is plain text; the path has its own toggle below the readout.
   assert.doesNotMatch(source, /data-watcher-tool="timeline"[\s\S]{0,600}?<PanelHeader/)
   assert.match(source, /data-timeline=\{timelineOpen \? 'open' : 'closed'\}/)
   assert.ok(source.indexOf('<PanelHeader') < source.indexOf('<SessionInsights'))
   assert.ok(source.indexOf('<SessionInsights') < source.indexOf('id="watcher-timeline-section"'))
-  assert.ok(source.indexOf('className={css.pathToggle}') < source.indexOf('id="watcher-timeline-body"'))
-  assert.match(panelStyles, /\.timelineSection \{[^}]*display: flex/s)
-  assert.match(panelStyles, /\.timelineBody\[hidden\] \{ display: none; \}/)
+  assert.ok(source.indexOf('<PathToggle') < source.indexOf('id="watcher-timeline-body"'))
+  assert.match(watcherStyles, /\.timelineSection \{[^}]*display: flex/s)
+  assert.match(watcherStyles, /\.timelineBody\[hidden\] \{ display: none; \}/)
   assert.match(panelStyles, /\.pathToggle \{[^}]*border-top: 1px solid var\(--ui-line\)/s)
   assert.match(panelStyles, /\.pathToggle\[data-open\] \.pathChevron/)
-  assert.match(panelStyles, /\.usageWindow \{[^}]*padding/s)
+  assert.match(watcherStyles, /\.usageWindow \{[^}]*padding/s)
   assert.match(watcherStyles, /\.workPicture\[data-timeline='closed'\] \{[^}]*min-height: 0/s)
 
   // The status bar owns the only hairline; the path toggle is the border between
@@ -245,6 +245,31 @@ test('the panel opens on the usage readout and unfolds the path on demand', asyn
   assert.match(source, /className=\{css\.alertRow\}/)
   assert.match(insightsStyles, /\.alertRow\[data-danger\] \.alertDot/)
   assert.doesNotMatch(source, /<Button variant="outline"/)
+})
+
+test('every CSS class a component reads exists in the stylesheet it imports', async () => {
+  // A class looked up on the wrong CSS module resolves to undefined at runtime:
+  // the element renders unstyled (a native button in the middle of the panel)
+  // and nothing fails. Bind each `import css from '...module.css'` to the file
+  // it points at and prove every `css.<name>` in that component is defined.
+  const names = (await readdir(clientDir, { recursive: true }))
+    .filter(name => name.endsWith('.tsx'))
+    .sort()
+  const missing = []
+  for (const name of names) {
+    const rel = name.split(path.sep).join('/')
+    const source = await readFile(new URL(rel, clientDir), 'utf8')
+    const imports = source.matchAll(/^import\s+(\w+)\s+from\s+'([^']+\.module\.css)'/gm)
+    for (const [, binding, specifier] of imports) {
+      const cssPath = path.posix.normalize(path.posix.join(path.posix.dirname(rel), specifier))
+      const styles = await readFile(new URL(cssPath, clientDir), 'utf8')
+      const used = new Set([...source.matchAll(new RegExp(`\\b${binding}\\.([A-Za-z_]\\w*)`, 'g'))].map(m => m[1]))
+      for (const className of used) {
+        if (!new RegExp(`\\.${className}(?![\\w-])`).test(styles)) missing.push(`${rel}: ${binding}.${className} is not defined in ${cssPath}`)
+      }
+    }
+  }
+  assert.deepEqual(missing, [])
 })
 
 test('each settings section keeps a mounted tabpanel too', async () => {

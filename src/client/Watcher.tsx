@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type {} from '@deepseek-ai/dsh-client-ui-chat/client'
 import type {} from '@deepseek-ai/dsh-session-stats/client'
-import { IconChevronDownOutlineRegular, IconSearchOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconSearchOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
@@ -45,6 +45,7 @@ import {
 import { SessionInsights, type Evidence } from './SessionInsights.tsx'
 import { PanelHeader, type PanelTool } from './panel/PanelHeader.tsx'
 import { PathTimeline } from './panel/PathTimeline.tsx'
+import { PathToggle } from './panel/PathToggle.tsx'
 import { SearchRow } from './panel/SearchRow.tsx'
 import { ViewMenu } from './panel/ViewMenu.tsx'
 
@@ -85,7 +86,6 @@ function IconLivingEye({ size = 17 }: { size?: number }) {
     >
       <g className={css.eyeBlink}>
         <path
-          className={css.eyeOutline}
           fill="currentColor"
           fillRule="evenodd"
           d="M9 3.25c-3.93 0-7.03 2.88-7.9 5.75.87 2.87 3.97 5.75 7.9 5.75s7.03-2.88 7.9-5.75C16.03 6.13 12.93 3.25 9 3.25Zm0 9.95A4.2 4.2 0 1 1 9 4.8a4.2 4.2 0 0 1 0 8.4Z"
@@ -355,10 +355,10 @@ function ReadyWatcher({
     ? picture.turns.filter(turn => turn.groups.some(group => groupMatchesFilter(group, pathFilter)))
     : picture.turns
   const noFilterMatch = filterActive && visibleTurns.length === 0
-  const turnsText = snapshot.hasMore && totalTurnCount > picture.turnCount
-    ? `已载入 ${picture.turnCount}/${totalTurnCount} 轮`
+  const turnsText = totalTurnCount > picture.turnCount
+    ? `${picture.turnCount}/${totalTurnCount} 轮`
     : `${picture.turnCount} 轮`
-  const stepsText = snapshot.hasMore && totalStepCount > picture.stepCount
+  const stepsText = totalStepCount > picture.stepCount
     ? `${picture.stepCount}/${totalStepCount} 步`
     : `${picture.stepCount} 步`
   const actionsText = `${picture.actionCount} 次执行`
@@ -717,22 +717,12 @@ function ReadyWatcher({
                 aria-label="执行路径"
                 data-open={timelineOpen ? '' : undefined}
               >
-                <button
-                  type="button"
-                  className={css.pathToggle}
-                  data-open={timelineOpen ? '' : undefined}
-                  data-watcher-tool="timeline"
-                  aria-expanded={timelineOpen}
-                  aria-controls="watcher-timeline-body"
-                  title={timelineOpen ? '收起执行路径' : '展开执行路径'}
-                  onClick={toggleTimeline}
-                >
-                  <span className={css.pathLabel}>执行路径</span>
-                  <span className={css.pathCounts} title={historyProgress}>
-                    {turnsText} · {stepsText} · {actionsText}
-                  </span>
-                  <IconChevronDownOutlineRegular size={13} className={css.pathChevron} />
-                </button>
+                <PathToggle
+                  open={timelineOpen}
+                  counts={`${turnsText} · ${stepsText} · ${actionsText}`}
+                  hint={historyProgress}
+                  onToggle={toggleTimeline}
+                />
                 <div id="watcher-timeline-body" className={css.timelineBody} hidden={!timelineOpen}>
                 {searchVisible
                   ? (

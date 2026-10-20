@@ -64,12 +64,9 @@
 
 /* ── Usage readout (main window) ────────────────────────────────────────── */
 
-/* The turn readout is the panel's main surface now; the path below it is the
- * secondary window and only exists while it is unfolded. */
-.usageWindow {
-  flex: none;
-  padding: 12px 14px 14px;
-}
+/* The readout wrapper, the scroll section and the timeline body are composed in
+ * Watcher.tsx, so their layout lives in Watcher.module.css. What stays here is
+ * the path toggle and the rows the panel module renders itself. */
 
 .iconBar {
   display: flex;
@@ -201,28 +198,6 @@
   white-space: nowrap;
 }
 
-/* ── Timeline (secondary window) ────────────────────────────────────────── */
-
-/* Closed, the section is just the toggle row. Open, it takes the remaining
- * panel height and the path scrolls inside it. */
-.timelineSection {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.timelineSection[data-open] { flex: 1 1 auto; }
-
-.timelineBody {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.timelineBody[hidden] { display: none; }
-
 /* ── Overlays ───────────────────────────────────────────────────────────── */
 
 .popover {
@@ -233,16 +208,6 @@
   border: 1px solid var(--ui-line);
   border-radius: 10px;
   box-shadow: 0 14px 34px rgba(20, 24, 35, .14);
-}
-
-.statsEmpty {
-  margin: 0;
-  padding: 2px 0 4px;
-  max-width: 320px;
-  color: var(--ui-text-secondary);
-  font-size: 12px;
-  line-height: 18px;
-  text-wrap: pretty;
 }
 
 .viewMenu {
