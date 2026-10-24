@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1 — 2026-10-24
+
+- The compatibility note now tracks the 0.2.x line: verified against DeepSeek Harness 0.2.1-rc.3. The peer range is unchanged (`>=0.1.7-rc.1 <0.1.8 || ^0.2.0-rc.1`); both READMEs now state plainly that 0.3.0 and above are refused by the plugin manager as `incompatible-version`.
+
 ## 0.7.0 — 2026-10-20
 
 - Fixed the panel shell after the flattening: `Watcher.tsx` composed the readout wrapper, the path section, the timeline body, the empty-readout note and the 执行路径 toggle out of classes that were declared in `panel.module.css` but looked up on `Watcher.module.css`, so they resolved to `undefined` — the readout lost its padding and the toggle rendered as a bare browser button in the middle of the card. The shell layout now lives in the stylesheet of the component that renders it, the toggle is its own `panel/PathToggle` component, and a new contract test binds every `css.<name>` a component reads to a class actually defined in the stylesheet it imports (it caught an unstyled icon path on the first run). Model values show the model name with provider and thinking level as the note instead of truncating the whole route, the compact timing row leads with the duration, and the flat readout keeps a 14px rhythm between its blocks.

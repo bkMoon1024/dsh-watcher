@@ -11,7 +11,7 @@
 打开 **设置 → 插件 → 添加插件**，在“包名或地址”中输入：
 
 ```text
-github:daha1216/dsh-watcher#v0.7.0
+github:daha1216/dsh-watcher#v0.7.1
 ```
 
 桌面端插件管理器负责 Desktop profile 和内置包管理器。本发布已提交 `lib/`；普通使用不需要 clone、构建或安装 DSHX。若应用提示刷新或重新打开，请按提示完成。
@@ -19,12 +19,12 @@ github:daha1216/dsh-watcher#v0.7.0
 ### Web CLI
 
 ```sh
-dsh plugin --profile web add github:daha1216/dsh-watcher#v0.7.0
+dsh plugin --profile web add github:daha1216/dsh-watcher#v0.7.1
 ```
 
 这条官方 CLI 命令只写入 `web` profile，不能修改 Desktop App 的 profile。对于已经运行的 Web Host，请重新打开该 Host 一次，再刷新网页。
 
-需要 DeepSeek Harness **0.1.7-rc.2**（`@deepseek-ai/dsh@0.1.7-rc.2`）。peer 范围 `>=0.1.7-rc.1 <0.1.8 || ^0.2.0-rc.1`：0.1.7-rc.1、0.1.7-rc.2 和 **0.2.0-rc.x** 都能装，开发与测试仍以 0.1.7-rc.2 为准。Node `^22.19.0` 或 `>=24`。
+需要 DeepSeek Harness **0.2.x**（当前在 `0.2.1-rc.3` 上核对通过）。peer 范围 `>=0.1.7-rc.1 <0.1.8 || ^0.2.0-rc.1`：0.1.7-rc.1、0.1.7-rc.2 和 **0.2.x** 都能装，0.3.0 及以上会被插件管理器以 `incompatible-version` 拒绝（确需试用可加 `dsh plugin allow-version` 豁免），DSH 升到 0.3.x 后需要本插件发新版放开范围。Node `^22.19.0` 或 `>=24`。
 
 DeepSeek Harness Web 的只读插件。点会话标题栏里的眼睛，把 Session 收成一张能折叠的工作路径：这轮走了几步、跑了几次、花了多久；再展开某一步看并行分支、工具结果，或一条默认折着的推理记录。
 
@@ -65,7 +65,11 @@ dsh plugin --profile web remove dsh-watcher
 
 交互约定在 [DESIGN.md](./DESIGN.md)。MIT。
 
-## 本次更新（未发布，0.7.0）
+## 本次更新（0.7.1）
+
+- 在 DeepSeek Harness **0.2.1-rc.3** 上核对通过；兼容性说明改为以 **0.2.x** 为准（peer 范围不变：`>=0.1.7-rc.1 <0.1.8 || ^0.2.0-rc.1`），0.3.0 及以上会被插件管理器以 `incompatible-version` 拒绝。
+
+## 0.7.0
 
 - **面板做减法，路径成为主角。** 撤掉常驻的命令栏、路径工具栏与整块会话 HUD，只留三样：44px 状态条（状态点、状态词、当前动作，右侧搜索 / 用量 / 视图三个图标按钮）、26px 无边框指标线（轮次 · 步骤 · 执行数；Token · 估算成本 · 缓存命中；右侧实时 tok/s）、单行时间线。搜索与「全部 / 异常 / 等待」筛选收进搜索行，统计收进「用量与耗时」浮层，组织 / 展开 / 载入更早 / 载入全部 / 跳到最新收进「⋯」菜单。
 - **时间线一行一条记录。** 轮次头 33px、阶段头 30px、记录行 26px；只有一个记录且没有模型阶段的 Step 直接展平，步骤号并入记录 meta，不再为单条记录多占一个头。耗时仍逐级可见（轮次总耗时、阶段跨度、记录耗时、tok/s），但去掉了阶段时长占比条。

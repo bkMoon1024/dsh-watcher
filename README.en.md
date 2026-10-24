@@ -11,7 +11,7 @@
 Open **Settings → Plugins → Add plugin** and enter this in “Package name or address”:
 
 ```text
-github:daha1216/dsh-watcher#v0.7.0
+github:daha1216/dsh-watcher#v0.7.1
 ```
 
 The desktop plugin manager owns the Desktop profile and bundled package manager. This release commits `lib/`; normal use needs no clone, build, or DSHX installation. Follow the app if it asks you to reload or reopen after installation.
@@ -19,12 +19,12 @@ The desktop plugin manager owns the Desktop profile and bundled package manager.
 ### Web CLI
 
 ```sh
-dsh plugin --profile web add github:daha1216/dsh-watcher#v0.7.0
+dsh plugin --profile web add github:daha1216/dsh-watcher#v0.7.1
 ```
 
 This official CLI command writes only the `web` profile; it cannot modify the Desktop App profile. For an already-running Web Host, reopen that Host once and reload the page.
 
-DeepSeek Harness **0.1.7-rc.2** (`@deepseek-ai/dsh@0.1.7-rc.2`). The peer range `>=0.1.7-rc.1 <0.1.8 || ^0.2.0-rc.1` accepts **0.1.7-rc.1**, **0.1.7-rc.2**, and the **0.2.0-rc.x** line; development and testing still track 0.1.7-rc.2. Node `^22.19.0` or `>=24`.
+DeepSeek Harness **0.2.x** (verified against `0.2.1-rc.3`). The peer range `>=0.1.7-rc.1 <0.1.8 || ^0.2.0-rc.1` accepts **0.1.7-rc.1**, **0.1.7-rc.2**, and the **0.2.x** line; 0.3.0 and above are refused by the plugin manager with `incompatible-version` (add a `dsh plugin allow-version` exemption to try anyway), and once DSH reaches 0.3.x this plugin needs a new release to widen the range. Node `^22.19.0` or `>=24`.
 
 A read-only plugin for DeepSeek Harness Web. Open the eye in the session header. A Session becomes a foldable work path: how many steps ran, how many tools fired, how long it took. Open a step for parallel branches, a tool result, or a reasoning row that stays folded until you ask.
 
@@ -65,7 +65,11 @@ The settings summary and session HUD show **Estimated cost** (not “total value
 
 The interaction contract lives in [DESIGN.md](./DESIGN.md). MIT.
 
-## What's new (unreleased, 0.7.0)
+## What's new (0.7.1)
+
+- Verified against DeepSeek Harness **0.2.1-rc.3**; the compatibility note now tracks the **0.2.x** line (peer range unchanged: `>=0.1.7-rc.1 <0.1.8 || ^0.2.0-rc.1`). 0.3.0 and above are refused by the plugin manager as `incompatible-version`.
+
+## 0.7.0
 
 - **The panel subtracts so the path can lead.** The permanent command bar, path toolbar and whole-session HUD are gone. Three things stay: a 44px status bar (state dot, state word, current action, plus search / usage / view icon buttons), a 26px borderless scale line (turns · steps · executions; tokens · estimated cost · cache hit; live tok/s on the right), and the timeline. Search and the 全部 / 异常 / 等待 filter open under the header, usage opens in a popover, and organize / depth / load-older / load-all / jump-to-latest live in the ellipsis menu.
 - **One row per record.** Turn headers are 33px, phase headers 30px and record rows 26px. A Step with exactly one record and no model stage flattens into that record row — its step number moves into the meta line — instead of spending a header on a single row. Turn total, phase span, record time and live tok/s stay visible; the phase duration-share bar is gone.
