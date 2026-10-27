@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 // @ts-ignore TS7016: no declarations for the local .mjs module
 import { clearPricingEditor, effectivePricingText, persistPricingEditor } from '../../insights/pricing.mjs'
 import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -11,14 +11,40 @@ export function SettingsPrefs({ copy }: { copy: any }) {
   const [silence, setSilence] = useState(limits.silenceSeconds)
   const [reasoning, setReasoning] = useState(limits.reasoningSeconds)
   const [saved, setSaved] = useState(false)
-  const [overrideText, setOverrideText] = useState(() => effectivePricingText(globalThis.localStorage))
+  const [overrideText, setOverrideText] = useState(() => {
+    try { return effectivePricingText(globalThis.localStorage) } catch { return '' }
+  })
   const [overrideError, setOverrideError] = useState('')
   const [overrideSaved, setOverrideSaved] = useState(false)
+  // The confirmation flash outlives a fast tab switch unless it is cancelled.
+  const savedTimer = useRef<number | null>(null)
+  const overrideTimer = useRef<number | null>(null)
+  useEffect(() => () => {
+    if (savedTimer.current !== null) window.clearTimeout(savedTimer.current)
+    if (overrideTimer.current !== null) window.clearTimeout(overrideTimer.current)
+  }, [])
+  const flash = (which: 'saved' | 'override') => {
+    const [ref, set] = which === 'saved'
+      ? [savedTimer, setSaved] as const
+      : [overrideTimer, setOverrideSaved] as const
+    if (ref.current !== null) window.clearTimeout(ref.current)
+    set(true)
+    ref.current = window.setTimeout(() => set(false), 2000)
+  }
   const save = () => {
-    localStorage.setItem(STORAGE, JSON.stringify({ silenceSeconds: silence, reasoningSeconds: reasoning }))
+    // A cleared number input yields NaN; keep the stored thresholds inside the
+    // range the alert reader accepts instead of persisting junk.
+    const nextSilence = Number.isFinite(silence) ? Math.min(300, Math.max(5, Math.round(silence))) : limits.silenceSeconds
+    const nextReasoning = Number.isFinite(reasoning) ? Math.min(600, Math.max(10, Math.round(reasoning))) : limits.reasoningSeconds
+    setSilence(nextSilence)
+    setReasoning(nextReasoning)
+    try {
+      localStorage.setItem(STORAGE, JSON.stringify({ silenceSeconds: nextSilence, reasoningSeconds: nextReasoning }))
+    } catch {
+      // Storage may be full or disabled; the in-memory thresholds still apply.
+    }
     window.dispatchEvent(new CustomEvent('watcher-insights-settings'))
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    flash('saved')
   }
   return (
     <>
@@ -45,8 +71,7 @@ export function SettingsPrefs({ copy }: { copy: any }) {
                   setOverrideText(persistPricingEditor(overrideText, globalThis.localStorage))
                   window.dispatchEvent(new CustomEvent('watcher-pricing-settings'))
                   setOverrideError('')
-                  setOverrideSaved(true)
-                  setTimeout(() => setOverrideSaved(false), 2000)
+                  flash('override')
                 } catch {
                   setOverrideError(copy.priceOverrideInvalid)
                 }

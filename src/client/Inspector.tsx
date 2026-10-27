@@ -22,7 +22,7 @@ import {
   STATUS_LABEL,
   TERMINAL_LABELS,
 } from './labels.ts'
-import { formatDuration, isJsonValue, itemPattern, rawOf } from './display.ts'
+import { formatDuration, isJsonValue, itemPattern, rawOf, safeMarkdown } from './display.ts'
 import { StatusMark } from './StatusMark.tsx'
 
 /** Which payload view the docked inspector is showing. */
@@ -86,7 +86,7 @@ function ResultPresentation({ presentation }: { presentation: WorkPresentation }
     case 'text':
       return (
         <article className={css.documentResult} data-watcher-document="">
-          <MarkdownText text={presentation.text} labels={MARKDOWN_LABELS} />
+          <MarkdownText text={safeMarkdown(presentation.text)} labels={MARKDOWN_LABELS} />
         </article>
       )
     case 'image':

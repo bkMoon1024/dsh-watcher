@@ -8,7 +8,7 @@ export function limitsOf(raw) {
 /** @param {any} view @param {number} now @param {{running?:boolean,waiting?:boolean,limits?:{silenceSeconds:number,reasoningSeconds:number}}} options */
 export function alertsOf(view, now, { running = false, waiting = false, limits = DEFAULT_LIMITS } = {}) {
   if (!view) return [];
-  const alerts = (view.findings ?? []).filter(f => f.turn === view.turn?.number).slice(-3);
+  const alerts = (Array.isArray(view.findings) ? view.findings : []).filter(f => f && f.turn === view.turn?.number).slice(-3);
   const p = view.pending;
   if (!running || waiting || !p) return alerts;
   const last = p.lastContentAt ?? p.start;
@@ -26,7 +26,8 @@ export function alertsOf(view, now, { running = false, waiting = false, limits =
 }
 export function mergeModels(views) {
   const map = new Map();
-  for (const view of views) for (const m of view.models ?? []) {
+  for (const view of views) for (const m of Array.isArray(view?.models) ? view.models : []) {
+    if (!m || typeof m !== 'object') continue;
     const key = JSON.stringify([m.provider, m.model, m.effort ?? null]);
     let row = map.get(key);
     if (!row) { row = { provider: m.provider, model: m.model, ...(m.effort ? { effort: m.effort } : {}), sessions: 0 }; map.set(key, row); }
@@ -42,6 +43,41 @@ export function mergeModels(views) {
  * @param {any} remote
  * @param {{signal?:AbortSignal,limit?:number,onProgress?:(value:any)=>void}} options
  */
+const MAX_MODEL_ROWS = 64;
+const MAX_FINDINGS = 30;
+/**
+ * A session list carries whatever a projection wrote, possibly from an older
+ * plugin version or a different writer. Only shape-checked, bounded copies are
+ * handed to the aggregates: one malformed row must not break the whole scan.
+ */
+/** Every counter the ledger adds up; a missing one becomes NaN downstream. */
+const STAT_KEYS = Object.freeze([
+  'calls', 'reported', 'exactTotals', 'tokens', 'input', 'output', 'cacheRead', 'cacheWrite',
+  'reasoning', 'reasoningReports', 'modelMs', 'timedCalls', 'firstMs', 'firstSamples',
+  'reasoningMs', 'tools', 'toolErrors', 'toolMs', 'bashMs', 'retries',
+]);
+function hasFiniteStats(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  return STAT_KEYS.every(key => Number.isFinite(value[key]));
+}
+/** A model row the charts can read: a name and a token count, nothing else. */
+function readableModelRow(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  if (typeof value.model !== 'string' || !Number.isFinite(value.tokens)) return null;
+  return value;
+}
+function sanitizeCandidate(candidate, sessionId) {
+  if (!candidate || candidate.version !== 1 || candidate.sessionId !== sessionId) return null;
+  // The dashboard reads these two fields directly (paging, day buckets); a
+  // candidate without them is a half-written view, not a zero-valued one.
+  if (!Number.isSafeInteger(candidate.seq) || !Number.isFinite(candidate.updatedAt)) return null;
+  if (!hasFiniteStats(candidate.totals)) return null;
+  if (!Array.isArray(candidate.models) || !Array.isArray(candidate.findings)) return null;
+  const models = candidate.models.map(readableModelRow).filter(Boolean).slice(0, MAX_MODEL_ROWS);
+  const findings = candidate.findings.filter(f => f && typeof f === 'object' && Number.isFinite(f.turn)).slice(-MAX_FINDINGS);
+  return { ...candidate, models, findings };
+}
+
 export async function scanSessions(remote, { signal, limit = 30, onProgress = () => {} } = {}) {
   const res = await remote.session.list({}, signal);
   signal?.throwIfAborted();
@@ -58,8 +94,8 @@ export async function scanSessions(remote, { signal, limit = 30, onProgress = ()
     const candidate = rawCandidate?.val ?? rawCandidate;
     let value = null, error = null;
     if (row.origin === 'subagent') error = '直接子代理暂未纳入；避免重复计算继承前缀';
-    else if (candidate?.version === 1 && candidate.sessionId === row.sessionId && candidate.totals && Array.isArray(candidate.models) && Array.isArray(candidate.findings)) value = candidate;
-    else error = '尚无 Watcher 统计缓存；在加载插件后运行或打开此会话，再刷新统计';
+    else value = sanitizeCandidate(candidate, row.sessionId);
+    if (value === null && error === null) error = '尚无 Watcher 统计缓存；在加载插件后运行或打开此会话，再刷新统计';
     return { sessionId: row.sessionId, value, error, updatedAt: Number(row.updatedAt) || 0 };
   });
   const result = { rows, total: unique.length, selected: picked.length };

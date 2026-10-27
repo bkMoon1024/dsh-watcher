@@ -48,6 +48,24 @@ export function useLiveClock(enabled: boolean): number {
   return now
 }
 
+/**
+ * Markdown that is safe to render inside the panel.
+ *
+ * Recorded output is untrusted text: a model or a fetched file can contain
+ * `![x](https://…)`, which a markdown renderer resolves immediately. That would
+ * turn opening a record into a request to somebody else's server, so a remote
+ * image becomes a plain link the reader can choose to open.
+ */
+export function safeMarkdown(text: string): string {
+  if (!text) return text
+  return text
+    .replace(/!\[([^\]]*)\]\((\s*)(https?:\/\/[^)\s]+)([^)]*)\)/gi, (_match, alt: string, _space, url: string) => (
+      alt ? `[${alt}](${url})` : `<${url}>`
+    ))
+    // Raw HTML images bypass markdown image syntax entirely.
+    .replace(/<img[^>]*src\s*=\s*["']?(https?:\/\/[^"'>\s]+)[^>]*>/gi, '<$1>')
+}
+
 /** How an item relates to an earlier attempt at the same work. */
 export function itemPattern(item: WorkItem): string | null {
   if (item.retryIndex > 0) return `重试 ${item.retryIndex} 次`

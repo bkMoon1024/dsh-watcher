@@ -95,6 +95,8 @@ export function usePanelGeometry({ open, anchorRef, fallbackExitMs }: {
   const restoredSizeRef = useRef(size !== null)
   const [resizing, setResizing] = useState(false)
   const resizeStart = useRef<{ x: number; y: number; w: number; h: number } | null>(null)
+  /** Tears down an in-flight drag; the unmount path needs it too. */
+  const endResizeRef = useRef<(() => void) | null>(null)
   /** The natural size the panel opened at — the floor; resize can only grow. */
   const resizeMin = useRef<{ w: number; h: number } | null>(null)
   const anchored = useAnchoredPosition({
@@ -203,9 +205,15 @@ export function usePanelGeometry({ open, anchorRef, fallbackExitMs }: {
         if (ev !== null) applyMove(ev)
       })
     }
-    const up = () => {
+    /**
+     * Releasing outside the window never delivers pointerup, and a touch can be
+     * taken over by the OS (pointercancel). Both paths, plus unmount, must end
+     * the drag or the window listeners outlive the gesture and keep resizing.
+     */
+    const endResize = (persist: boolean) => {
       window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onCancel)
       if (frame !== null) {
         cancelAnimationFrame(frame)
         frame = null
@@ -214,12 +222,20 @@ export function usePanelGeometry({ open, anchorRef, fallbackExitMs }: {
       pending = null
       if (ev !== null) applyMove(ev)
       resizeStart.current = null
+      endResizeRef.current = null
+      try { panel.releasePointerCapture(event.pointerId) } catch { /* already released */ }
+      if (!persist) return
       setResizing(false)
       const el = panelRef.current
       if (el !== null) writeStoredPanelSize({ width: el.offsetWidth, height: el.offsetHeight })
     }
+    const onUp = () => endResize(true)
+    const onCancel = () => endResize(true)
+    endResizeRef.current = () => endResize(false)
+    try { panel.setPointerCapture(event.pointerId) } catch { /* pointer already gone */ }
     window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', up)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onCancel)
   }
 
   /** A double-click on the grip returns the panel to its anchored auto layout. */
@@ -260,6 +276,7 @@ export function usePanelGeometry({ open, anchorRef, fallbackExitMs }: {
 
   useLayoutEffect(() => () => {
     if (pinTimer.current !== null) window.clearTimeout(pinTimer.current)
+    endResizeRef.current?.()
   }, [])
 
   const style = ((): CSSProperties => {

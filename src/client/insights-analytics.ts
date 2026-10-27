@@ -1,6 +1,6 @@
 // @ts-ignore TS7016: no declarations for the local .mjs module
 import { estimateUsageRows } from '../insights/pricing.mjs'
-import { PALETTE, WEEKDAYS, dayKey, dayLabel, routeLabel } from './insights-shared.tsx'
+import { PALETTE, WEEKDAYS, dayKey, dayKeyDaysAgo, dayLabel, dayStart, routeLabel } from './insights-shared.tsx'
 
 export type SessionsScan = { total: number; selected: number; rows: any[] }
 export type AnalyticsRange = '7' | '30' | '180'
@@ -18,7 +18,12 @@ export function analyticsOf(
 ) {
   if (!sessions) return null
   const days = Number(range)
-  const cutoff = Date.now() - days * 86400000
+  // The ledger totals and the plotted columns must cover the same calendar
+  // window; a rolling `days * 24h` cutoff counts part of a day the chart cannot
+  // draw yet.
+  const rangeStart = new Date(dayStart(Date.now()))
+  rangeStart.setDate(rangeStart.getDate() - (days - 1))
+  const cutoff = rangeStart.getTime()
   const validRows = sessions.rows.filter((r: any) => r.value && (!r.updatedAt || r.updatedAt >= cutoff))
   const validViews = validRows.map((r: any) => r.value)
   let totalTokens = 0
@@ -186,7 +191,7 @@ export function analyticsOf(
 
   // 每日活动序列
   const keys: string[] = []
-  for (let i = days - 1; i >= 0; i--) keys.push(dayKey(Date.now() - i * 86400000))
+  for (let i = days - 1; i >= 0; i--) keys.push(dayKeyDaysAgo(i))
   const byDay = new Map(keys.map(k => [k, { models: new Map<string, number>(), sessions: 0 }]))
   validRows.forEach((row: any) => {
     // A session without updatedAt has no honest day bucket; counting it as
@@ -204,8 +209,8 @@ export function analyticsOf(
     })
   })
 
-  const todayStr = dayKey(Date.now())
-  const yesterdayStr = dayKey(Date.now() - 86400000)
+  const todayStr = dayKeyDaysAgo(0)
+  const yesterdayStr = dayKeyDaysAgo(1)
 
   const daySeries = keys.map(key => {
     const bucket = byDay.get(key) ?? { models: new Map(), sessions: 0 }

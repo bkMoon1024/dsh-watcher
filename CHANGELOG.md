@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.7.2 — 2026-10-27
+
+An adversarial review pass over the whole plugin (host fold, live client, pricing, settings) fixed two crash paths, a wrong-money path, several privacy and lifecycle defects, and the edge cases around streaming time, history paging and keyboard layering.
+
+- Fixed a stack overflow in the fold: a tool call whose arguments nest thousands of levels deep (or a result whose content does) made `stableValue` / `textFromContent` recurse until `RangeError: Maximum call stack size exceeded`. It ran inside the Watcher's render memo, so the panel died with it. Both walks now stop at 32 levels and keep the remaining payload opaque.
+- A streaming chunk without a usable `time` wrote `undefined` / `NaN` into `lastContentAt`, which the projection's `nullableTime` rejects — the view then failed validation and the persisted state drifted. Times that are not non-negative safe integers are now ignored, and an abandoned attempt settles at its last content time, so a five-hour pause between turns no longer books five hours of model time.
+- Failure evidence no longer disappears for outputs over 64 KB: the fingerprint hashes the whole payload instead of returning `null` past a length cap, which used to reset the repeated-failure chain exactly when the output was big.
+- Estimated cost honours the price table's unit: `per_1k_tokens` was charged at the per-million divisor, a 1000× overestimate. An unsupported unit is now Unknown rather than a silently wrong number.
+- Estimated cost honours currency: a CNY row rendered as `$1.00`, and rows priced in two currencies were added together. The sign comes from the row (or table) currency, and a mixed-currency scan refuses the total and says so in the footnote.
+- A corrupted pricing override can no longer break a render: `__proto__`/`constructor` model ids are skipped, a string `aliases` is dropped instead of throwing `TypeError`, and the effective table falls back to the built-in defaults when merging fails.
+- The settings tab cancels its session scan when it is left or refreshed (it kept reading up to 500 sessions into a discarded render), and its two "saved" flashes are cancelled on unmount.
+- Saving the alert thresholds clamps them to the range the reader accepts — a cleared number input used to persist `NaN` — and a storage that refuses writes no longer throws out of the click handler.
+- Dragging the panel used to keep following the pointer after a release outside the window: the resize now captures the pointer, ends on `pointercancel`, and cleans its window listeners up on unmount.
+- The keyboard listener is registered once per open instead of on every render; an Esc pressed during the inspector's exit animation no longer also collapses the path, and the arrow keys are inert while the tools menu is open.
+- Following the live path restores itself when the rail is scrolled back to the bottom; the unread badge used to keep counting under a frozen rail. The filtered turn list is memoized.
+- Alerts and scans tolerate malformed input (`findings: [null]`, a row that is not an object) instead of throwing, and a missing session binding degrades to an empty panel rather than throwing during render.
+- Remote images in recorded markdown render as links, so opening a record no longer makes the browser fetch a third-party URL chosen by the model or a fetched file.
+- Calendar buckets step with `setDate`, so a DST time zone no longer duplicates or drops a column, and the 7/30/180-day totals use the same calendar window the chart draws.
+- The open panel refolded the whole session on every streaming delta; a 20k-event session folds in ~130 ms, so a long turn spent the main thread re-deriving a picture it had just derived. Live folds now coalesce to a bounded rate that backs off with the measured fold cost, and the settling snapshot is folded immediately.
+- The follow rail rebuilt the full occurrence-id list on every republished picture even though only the newest occurrence can add unread progress; that list is now built when the newest occurrence changes, so streaming no longer allocates one string per item per delta.
+- Itemized mode computed the grouped-mode projections (clustering every item of the phase, filtering every step for a model trace) on each live tick and then discarded them; both are now grouped-mode only.
+- A search filter still unfolds every matching phase, but an explicit collapse now wins: the chevron used to write a fold the filter immediately ignored, so it looked broken until the filter was cleared.
+- Durations round consistently: 59.96 s reads `1 分 0 秒` instead of a `60.0 秒` that contradicted the next line.
+- CI runs the check job with `permissions: contents: read` and does not leave the checkout token in `.git/config`.
+
 ## 0.7.1 — 2026-10-24
 
 - The compatibility note now tracks the 0.2.x line: verified against DeepSeek Harness 0.2.1-rc.3. The peer range is unchanged (`>=0.1.7-rc.1 <0.1.8 || ^0.2.0-rc.1`); both READMEs now state plainly that 0.3.0 and above are refused by the plugin manager as `incompatible-version`.

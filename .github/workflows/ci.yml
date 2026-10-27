@@ -18,8 +18,14 @@ jobs:
       matrix:
         # The engines field allows the 22 LTS line and everything from 24 up.
         node: ['22.19.0', '24']
+    # The check job only reads the repository; a dependency that tries to write
+    # a release or a comment should fail on permissions instead of succeeding.
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: pnpm/action-setup@v4
         with:
           version: 10

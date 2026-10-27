@@ -11,7 +11,7 @@
 打开 **设置 → 插件 → 添加插件**，在“包名或地址”中输入：
 
 ```text
-github:daha1216/dsh-watcher#v0.7.1
+github:daha1216/dsh-watcher#v0.7.2
 ```
 
 桌面端插件管理器负责 Desktop profile 和内置包管理器。本发布已提交 `lib/`；普通使用不需要 clone、构建或安装 DSHX。若应用提示刷新或重新打开，请按提示完成。
@@ -19,7 +19,7 @@ github:daha1216/dsh-watcher#v0.7.1
 ### Web CLI
 
 ```sh
-dsh plugin --profile web add github:daha1216/dsh-watcher#v0.7.1
+dsh plugin --profile web add github:daha1216/dsh-watcher#v0.7.2
 ```
 
 这条官方 CLI 命令只写入 `web` profile，不能修改 Desktop App 的 profile。对于已经运行的 Web Host，请重新打开该 Host 一次，再刷新网页。
@@ -61,11 +61,20 @@ dsh plugin --profile web remove dsh-watcher
 
 官方 CLI 只管理 `web` profile；Desktop App 请使用上面的应用内“添加插件”入口。
 
-设置页和会话 HUD 的 Token 总数旁有 **估算费用**（不是「总价值」）。按模型的输入 / 输出 / 缓存桶对照 `pricing/models.yaml` 计价；缺行显示 **未知**，不会当成 $0。部分已知时主数字只显示已标价金额，未标价写在脚注。这是估算，不是账单。默认表含 DeepSeek、MiniMax、OpenAI、Anthropic、Gemini、Grok、GLM、Qwen 主流行，不联网。设置里打开的是当前生效价格表；保存只把改动过的行写入 `localStorage` 键 `dsh-watcher:pricing-override:v1`。欢迎对默认表提 PR。
+设置页和会话 HUD 的 Token 总数旁有 **估算费用**（不是「总价值」）。按模型的输入 / 输出 / 缓存桶对照 `pricing/models.yaml` 计价；缺行显示 **未知**，不会当成 $0。价格表的 `unit`（每百万 / 每千 token）与每一行的 `currency` 都会生效：非美元行按其货币符号显示，多币种混在一起时合计直接标为未知，不做汇率换算。部分已知时主数字只显示已标价金额，未标价写在脚注。这是估算，不是账单。默认表含 DeepSeek、MiniMax、OpenAI、Anthropic、Gemini、Grok、GLM、Qwen 主流行，不联网。设置里打开的是当前生效价格表；保存只把改动过的行写入 `localStorage` 键 `dsh-watcher:pricing-override:v1`。欢迎对默认表提 PR。
 
 交互约定在 [DESIGN.md](./DESIGN.md)。MIT。
 
-## 本次更新（0.7.1）
+## 本次更新（0.7.2）
+
+- **一次对抗式审计。** 五路只读审查加真实会话日志回放，修掉 20 余处崩溃、算错钱、隐私与生命周期问题。最重的一条是重复失败证据在真实 Host 形状下**永不产生**：10,951 条 `tool/result` 里没有一条带 `tool-result` block，现在按 `message.isError` / `message.toolCallId` 结算，三个真实会话的失败计数与原始 `isError` 逐条一致。
+- **不再炸栈、不再灌 NaN。** 参数或结果嵌套数千层时折叠不再 `RangeError`（渲染期崩溃）；流式 chunk 时间缺失或非法时不再把 `undefined` / `NaN` 写进投影，被放弃的 attempt 按最后内容时间结算，隔夜暂停不再算成几小时模型耗时。
+- **钱算对了。** `per_1k_tokens` 不再按百万计（1000× 高估），币种符号随价格表与行走，多币种混算直接标未知；坏掉的定价 override 不再让设置页或面板整块崩。
+- **长会话不再卡。** 打开面板时不再每个流式 delta 全量重折（2 万事件会话单次约 130ms），改成按实测耗时的自适应合帧，轮次结束时立即折一次。
+- **隐私边界。** 记录里的远端图片改写为链接，打开记录不再向模型或文件选定的第三方地址发请求；原始 tab 与绝对路径保持精确（这是证据契约），边界写进 DESIGN.md。
+- **联动与边界。** Esc 分层不再在检视器退场时顺带折掉面板，工具菜单打开时方向键不再误切记录；筛选下折叠按钮不再失效；跟随在滚回底部时恢复；DST 时区的日桶不再重复或缺列；`59.96s` 不再显示成「60.0 秒」。
+
+## 0.7.1
 
 - 在 DeepSeek Harness **0.2.1-rc.3** 上核对通过；兼容性说明改为以 **0.2.x** 为准（peer 范围不变：`>=0.1.7-rc.1 <0.1.8 || ^0.2.0-rc.1`），0.3.0 及以上会被插件管理器以 `incompatible-version` 拒绝。
 

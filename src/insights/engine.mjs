@@ -42,24 +42,24 @@ function canonical(v) {
   return v;
 }
 const FINGERPRINT_MAX_CHARS = 65536;
-/** Cheap size pre-check so oversized payloads are dropped before serialization. */
-function fits(v, budget) {
-  if (typeof v === 'string') return v.length <= budget;
-  if (v === null || typeof v !== 'object') return true;
-  let left = budget;
-  if (Array.isArray(v)) {
-    for (const item of v) { left -= 1; if (!fits(item, left)) return false; }
-    return true;
-  }
-  for (const k of Object.keys(v)) { left -= k.length + 3; if (!fits(v[k], left)) return false; }
-  return true;
+/**
+ * Oversize payloads still need a stable identity: dropping them would silently
+ * break the repeated-failure chain exactly for long build/test output. Hash the
+ * length plus both ends instead, which stays bounded and deterministic.
+ */
+function boundedDigestInput(text) {
+  if (text.length <= FINGERPRINT_MAX_CHARS) return text;
+  const edge = FINGERPRINT_MAX_CHARS / 2;
+  return `${text.length}\u0000${text.slice(0, edge)}\u0000${text.slice(-edge)}`;
 }
 function fingerprint(v) {
   try {
-    if (typeof v !== 'string' && !fits(v, FINGERPRINT_MAX_CHARS)) return null;
     let text = typeof v === 'string' ? v : JSON.stringify(v);
-    if (!text || text.length > FINGERPRINT_MAX_CHARS) return null;
-    try { text = JSON.stringify(canonical(JSON.parse(text))); } catch {}
+    if (!text) return null;
+    text = boundedDigestInput(text);
+    if (text.length <= FINGERPRINT_MAX_CHARS) {
+      try { text = JSON.stringify(canonical(JSON.parse(text))); } catch {}
+    }
     return createHash('sha256').update(text).digest('hex');
   } catch { return null; }
 }
@@ -77,20 +77,27 @@ function modelRow(s, route) {
   return row;
 }
 function books(s, route = s.route) { return [s.totals, modelRow(s, route), ...(s.turn ? [s.turn.stats] : [])]; }
+/** Unsafe timestamps never enter a published view: the schema demands finite. */
+function timeOf(value) {
+  return Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
 function begin(s, d, time, uncertain = false) {
-  s.open = { turn: d.turn, step: d.step, start: uncertain ? null : time, first: null,
+  s.open = { turn: d.turn, step: d.step, start: uncertain ? null : timeOf(time), first: null,
     reasoningFirst: null, reasoningLast: null, lastContentAt: null, usage: null, route: { ...s.route } };
 }
 function settle(s, time, usage, source) {
   const a = s.open;
   if (!a) return;
+  // A missing or non-finite end time must never become NaN in the totals; the
+  // attempt's own last activity is the closest honest bound.
+  const end = timeOf(time) ?? a.lastContentAt ?? a.first ?? a.start;
   const route = record(source) && typeof source.provider === 'string' && typeof source.model === 'string'
     ? { provider: source.provider, model: source.model, ...(a.route?.effort ? { effort: a.route.effort } : {}) } : a.route;
   s.route = route;
   const u = usage === undefined || usage === null ? a.usage : normalizeUsage(usage);
   for (const b of books(s, route)) {
     b.calls++;
-    if (a.start !== null) { b.timedCalls++; b.modelMs += elapsed(a.start, time); }
+    if (a.start !== null) { b.timedCalls++; b.modelMs += elapsed(a.start, end); }
     if (a.start !== null && a.first !== null) { b.firstSamples++; b.firstMs += elapsed(a.start, a.first); }
     if (a.reasoningFirst !== null && a.reasoningLast !== null) b.reasoningMs += elapsed(a.reasoningFirst, a.reasoningLast);
     if (u) {
@@ -101,6 +108,16 @@ function settle(s, time, usage, source) {
   }
   s.open = null;
 }
+/**
+ * An attempt still open when a new turn/step starts never reported its end
+ * (crash, kill, truncated log). Settle it at its own last activity: the gap to
+ * this event is downtime, not model latency.
+ */
+function settleAbandoned(s) {
+  if (!s.open) return;
+  settle(s, s.open.lastContentAt ?? s.open.first ?? s.open.start, null, null);
+}
+
 function applyChunk(open, chunk, time) {
   if (!record(chunk) || typeof chunk.type !== 'string') return;
   if (chunk.type === 'usage') {
@@ -109,8 +126,12 @@ function applyChunk(open, chunk, time) {
   }
   if (!['reasoning-delta', 'text-delta', 'tool-call-delta'].includes(chunk.type)) return;
   if (!(typeof chunk.text === 'string' && chunk.text.length) && !(typeof chunk.argumentsDelta === 'string' && chunk.argumentsDelta.length) && !chunk.name) return;
-  open.first ??= time; open.lastContentAt = time;
-  if (chunk.type === 'reasoning-delta') { open.reasoningFirst ??= time; open.reasoningLast = time; }
+  // Chunks without a usable timestamp keep the previous activity mark instead
+  // of writing undefined/NaN into the published pending state.
+  const at = timeOf(time);
+  if (at === null) return;
+  open.first ??= at; open.lastContentAt = at;
+  if (chunk.type === 'reasoning-delta') { open.reasoningFirst ??= at; open.reasoningLast = at; }
 }
 function applyStream(open, stream) {
   if (!open || !Array.isArray(stream)) return;
@@ -173,11 +194,11 @@ export function reduceEvent(state, event) {
   } else if (event.type === 'user/message') {
     s.previousFailure = null;
   } else if (event.type === 'turn/start') {
-    if (s.open) settle(s, event.time, null, null);
+    settleAbandoned(s);
     s.turn = { number: d.turn, startedAt: event.time, endedAt: null, steps: 0, stats: emptyStats(), route: { ...s.route } };
     s.previousFailure = null; s.tools = [];
   } else if (event.type === 'step/start') {
-    if (s.open) settle(s, event.time, null, null);
+    settleAbandoned(s);
     begin(s, d, event.time);
     if (s.turn) s.turn.steps++;
   } else if (event.type === 'assistant/attempt') {
@@ -201,23 +222,28 @@ export function reduceEvent(state, event) {
       for (const b of books(s)) b.tools++;
     }
   } else if (event.type === 'tool/result') {
-    // RC1 stores a ToolResultMessage, not top-level callId/result fields. One
-    // message may carry several tool-result blocks (batched parallel calls),
-    // and each one settles its own in-flight tool entry.
+    // RC1 stores a ToolResultMessage, not top-level callId/result fields. A
+    // recorded result is either a batch of `tool-result` blocks or — what this
+    // Host actually writes — one message with plain `content`, `isError` and
+    // `toolCallId`. Both shapes must settle the in-flight entry: reading only the
+    // block shape left every real failure unflagged and never hashed, so the
+    // repeated-failure chain could not form at all.
     const content = Array.isArray(d.message?.content) ? d.message.content : [];
     const blocks = content.filter(b => b?.type === 'tool-result');
+    const messageCallId = typeof d.message?.toolCallId === 'string'
+      ? d.message.toolCallId
+      : d.message?.source?.callId;
     const results = blocks.length > 0
-      ? blocks.map(b => ({ id: b.toolCallId ?? d.message?.source?.callId, block: b, failed: b.isError === true || record(d.error) }))
-      : [{ id: d.message?.source?.callId, block: null, failed: record(d.error) }];
+      ? blocks.map(b => ({ id: b.toolCallId ?? messageCallId, payload: b.content, failed: b.isError === true || record(d.error) }))
+      : [{ id: messageCallId, payload: content, failed: d.message?.isError === true || record(d.error) }];
     for (const res of results) {
       const index = s.tools.findIndex(t => t.id === res.id);
       if (index < 0) continue;
       const t = s.tools.splice(index, 1)[0];
       const failed = res.failed;
-      const block = res.block;
       const dur = elapsed(t.start, event.time);
       for (const b of books(s, t.route)) { b.toolMs += dur; b.toolErrors += Number(failed); if (t.name === 'bash') b.bashMs = (b.bashMs ?? 0) + dur; }
-      const resultHash = block ? fingerprint({ content: block.content, isError: failed, code: d.error?.code ?? null }) : null;
+      const resultHash = fingerprint({ content: res.payload ?? null, isError: failed, code: d.error?.code ?? null });
       const prev = s.previousFailure;
       if (failed && t.signature && resultHash) {
         const same = prev?.signature === t.signature && prev?.resultHash === resultHash && prev?.turn === d.turn;
@@ -241,7 +267,7 @@ export function reduceEvent(state, event) {
   } else if (event.type === 'step/end') {
     if (s.open?.turn === d.turn && s.open.step === d.step) settle(s, event.time, null, null);
   } else if (event.type === 'turn/end') {
-    if (s.open) settle(s, event.time, null, null);
+    settleAbandoned(s);
     if (s.turn) s.turn.endedAt = event.time;
     s.tools = []; s.previousFailure = null;
   }

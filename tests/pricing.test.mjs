@@ -395,3 +395,42 @@ test('persisted overlay still wins over defaults for estimates', () => {
   const shown = JSON.parse(effectivePricingText(storage));
   assert.equal(shown.models['deepseek-flash'].input, 9.99);
 });
+
+test('a non-USD table renders its own sign instead of a dollar', () => {
+  const table = mergePricing(defaultPricing(), { currency: 'CNY', models: { 'yuan-model': { input: 1, output: 2 } } });
+  const priced = estimateModelUsage({ model: 'yuan-model', input: 1_000_000, output: 0, cacheRead: 0, cacheWrite: 0 }, table);
+  assert.equal(priced.currency, 'CNY');
+  assert.equal(formatUsd(priced.usd, priced.currency), '¥1.00');
+  assert.match(formatEstimate(priced, 'zh'), /^¥/);
+});
+
+test('mixed-currency rows refuse a total instead of adding CNY to USD', () => {
+  const table = mergePricing(defaultPricing(), {
+    models: {
+      'usd-model': { input: 1, output: 1 },
+      'cny-model': { input: 1, output: 1, currency: 'CNY' },
+    },
+  });
+  const result = estimateUsageRows([
+    { model: 'usd-model', input: 1_000_000 },
+    { model: 'cny-model', input: 1_000_000 },
+  ], table);
+  assert.equal(result.status, 'unknown');
+  assert.equal(result.reason, 'mixed-currency');
+  assert.equal(result.usd, null);
+  assert.equal(formatEstimateNote(result, 'zh'), '多币种混算，已跳过合计');
+});
+
+test('per_1k_tokens pricing is charged a thousandth of the per-million unit', () => {
+  const table = mergePricing(defaultPricing(), { unit: 'per_1k_tokens', models: { 'k-model': { input: 0.001, output: 0 } } });
+  const priced = estimateModelUsage({ model: 'k-model', input: 1_000_000 }, table);
+  assert.equal(priced.status, 'priced');
+  assert.ok(Math.abs(priced.usd - 1) < 1e-9, `usd=${priced.usd}`);
+});
+
+test('an unknown unit is unknown, never a silently wrong number', () => {
+  const table = mergePricing(defaultPricing(), { unit: 'per_1_token', models: { 'x-model': { input: 1 } } });
+  const priced = estimateModelUsage({ model: 'x-model', input: 10 }, table);
+  assert.equal(priced.status, 'unknown');
+  assert.equal(priced.reason, 'unsupported-unit');
+});

@@ -40,17 +40,26 @@ export function InsightsSettings(props: { remote?: any }) {
   const drilldownRef = useRef<HTMLDivElement | null>(null)
   const restoreFocusRef = useRef<HTMLElement | null>(null)
   const mountedRef = useRef(true)
+  /** A scan reads every session row: leaving the tab must not keep it running. */
+  const scanAbort = useRef<AbortController | null>(null)
   useEffect(() => {
     mountedRef.current = true
-    return () => { mountedRef.current = false }
+    return () => {
+      mountedRef.current = false
+      scanAbort.current?.abort()
+      scanAbort.current = null
+    }
   }, [])
 
   useEffect(() => {
     if (!props.remote) return
     let active = true
+    scanAbort.current?.abort()
+    const controller = new AbortController()
+    scanAbort.current = controller
     setLoading(true)
     setScanError(null)
-    scanSessions(props.remote, { limit: 500 })
+    scanSessions(props.remote, { limit: 500, signal: controller.signal })
       .then((res: SessionsScan) => {
         if (active) {
           setSessions(res)
@@ -72,14 +81,17 @@ export function InsightsSettings(props: { remote?: any }) {
         if (active) setScanError(error instanceof Error ? error.message : String(error))
       })
       .finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
+    return () => { active = false; controller.abort() }
   }, [props.remote])
 
   const refresh = () => {
     if (!props.remote || loading) return
+    scanAbort.current?.abort()
+    const controller = new AbortController()
+    scanAbort.current = controller
     setLoading(true)
     setScanError(null)
-    scanSessions(props.remote, { limit: 500 })
+    scanSessions(props.remote, { limit: 500, signal: controller.signal })
       .then((res: SessionsScan) => { if (mountedRef.current) setSessions(res) })
       .catch((error: unknown) => {
         if (mountedRef.current) setScanError(error instanceof Error ? error.message : String(error))

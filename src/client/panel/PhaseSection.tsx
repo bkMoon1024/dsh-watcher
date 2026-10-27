@@ -6,7 +6,7 @@ import type { WorkGroup, WorkItem, WorkStep } from '../../observation/fold.ts'
 import type { ModelStepTrace } from '../../observation/model-trace.ts'
 import { groupElapsedMs, stepElapsedMs } from '../../observation/performance.ts'
 import { formatDuration, useLiveClock } from '../display.ts'
-import { layerDisclosureOpen, type DisclosureLayer, type DisclosureState } from '../disclosure-depth.ts'
+import { layerDisclosureOpen, layerDisclosureOverride, type DisclosureLayer, type DisclosureState } from '../disclosure-depth.ts'
 import { ModelStage } from '../ModelStage.tsx'
 import { StatusMark } from '../StatusMark.tsx'
 import type { PathFilter } from '../path-filter.ts'
@@ -72,16 +72,22 @@ export const PhaseSection = memo(function PhaseSection({
     () => phaseStepRows(group, filterView.visibleItemIds),
     [group, filterView.visibleItemIds],
   )
+  // Grouped mode is the only reader of these two projections. Itemized mode
+  // used to compute both and throw them away on every live tick, which is real
+  // work: clustering walks every item of the phase and the model filter walks
+  // every step.
+  const grouped = mode === 'grouped'
   const clusters = useMemo(() => {
+    if (!grouped) return []
     const sourceItems = group.items.filter(item => item.source !== 'model')
     const visible = filterView.visibleItemIds
     return clusterWorkItems(visible === null ? sourceItems : sourceItems.filter(item => visible.has(item.id)))
-  }, [group, filterView.visibleItemIds])
+  }, [grouped, group, filterView.visibleItemIds])
   const modelSteps = useMemo(
-    () => (filterView.visibleItemIds === null
+    () => (grouped && filterView.visibleItemIds === null
       ? group.steps.filter((step): step is WorkStep & { model: ModelStepTrace } => step.model !== null)
       : []),
-    [group, filterView.visibleItemIds],
+    [grouped, group, filterView.visibleItemIds],
   )
   const occurrenceNumbers = useMemo(
     () => new Map(group.items.map((item, index) => [item.id, index + 1])),
@@ -96,8 +102,11 @@ export const PhaseSection = memo(function PhaseSection({
   const groupedModelsOpen = layerDisclosureOpen(disclosure, 'model', groupedModelsKey)
   const phaseMeta = phaseMetaText(group, duration)
   // A filter is a reading intent: matching rows must be on screen without
-  // another click, so the phase opens itself while the path is narrowed.
-  const effectiveOpen = open || (filterActive && !filterView.matchesNothing)
+  // another click, so the phase opens itself while the path is narrowed. An
+  // explicit toggle still wins in both directions, otherwise the header's
+  // chevron would look broken for as long as the filter stays on.
+  const effectiveOpen = layerDisclosureOverride(disclosure, 'phase', group.id)
+    ?? (open || (filterActive && !filterView.matchesNothing))
 
   if (filterView.matchesNothing) return null
 

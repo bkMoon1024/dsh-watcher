@@ -3,7 +3,7 @@ import { hasReasoningEvidence, modelStageMetrics, type ModelAttempt, type ModelS
 import { layerDisclosureOpen, type DisclosureState } from './disclosure-depth.ts'
 import css from './Watcher.module.css'
 import { MARKDOWN_LABELS } from './labels.ts'
-import { formatDuration } from './display.ts'
+import { formatDuration, safeMarkdown } from './display.ts'
 
 function reasoningAttemptDuration(attempt: ModelAttempt, now: number): number | null {
   if (attempt.firstReasoningTime === null || attempt.lastReasoningTime === null) return null
@@ -172,7 +172,7 @@ export function ModelStage({
                       id={`watcher-reasoning-${key}`}
                       className={css.reasoningBody}
                       >
-                      <MarkdownText text={attempt.reasoningText} labels={MARKDOWN_LABELS} />
+                      <MarkdownText text={safeMarkdown(attempt.reasoningText)} labels={MARKDOWN_LABELS} />
                       </article>
                     ) : null}
                   </section>

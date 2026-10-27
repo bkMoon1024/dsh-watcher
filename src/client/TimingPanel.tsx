@@ -5,9 +5,16 @@ import tokensCss from './ui/tokens.module.css'
 
 const duration = (ms: number) => {
   if (ms < 1000) return `${Math.round(ms)} ms`
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)} 秒`
-  const seconds = Math.round(ms / 1000)
-  return `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`
+  // Round to tenths first, so 59.96s reads as 1 分 0 秒 instead of a 60.0 秒
+  // value that contradicts the line right above it.
+  const tenths = Math.round(ms / 100)
+  if (tenths < 600) return `${(tenths / 10).toFixed(1)} 秒`
+  const totalSeconds = Math.round(ms / 1000)
+  if (totalSeconds < 3600) {
+    return `${Math.floor(totalSeconds / 60)} 分 ${totalSeconds % 60} 秒`
+  }
+  const totalMinutes = Math.round(totalSeconds / 60)
+  return `${Math.floor(totalMinutes / 60)} 小时 ${totalMinutes % 60} 分`
 }
 
 const fmtNum = (n: number) => new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 }).format(n)

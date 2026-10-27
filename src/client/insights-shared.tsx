@@ -48,10 +48,19 @@ export function useUiLocale() {
   return locale
 }
 
+/** A broken override must degrade to defaults, never break the page render. */
+function readPricingTable() {
+  try {
+    return mergePricing(defaultPricing(), readStoredOverride(globalThis.localStorage))
+  } catch {
+    return defaultPricing()
+  }
+}
+
 export function usePricingTable() {
-  const [table, setTable] = useState(() => mergePricing(defaultPricing(), readStoredOverride(globalThis.localStorage)))
+  const [table, setTable] = useState(readPricingTable)
   useEffect(() => {
-    const update = () => setTable(mergePricing(defaultPricing(), readStoredOverride(globalThis.localStorage)))
+    const update = () => setTable(readPricingTable())
     window.addEventListener('watcher-pricing-settings', update)
     return () => window.removeEventListener('watcher-pricing-settings', update)
   }, [])
@@ -71,6 +80,24 @@ export const fmtCompact = (n: number) => {
 export const dayKey = (ms: number) => {
   const d = new Date(ms)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** Local midnight of the day holding `ms`; the anchor for calendar-day ranges. */
+export const dayStart = (ms: number) => {
+  const d = new Date(ms)
+  d.setHours(0, 0, 0, 0)
+  return d.getTime()
+}
+
+/**
+ * The calendar key `daysAgo` days back. Stepping with `setDate` keeps the local
+ * calendar honest across DST shifts, where subtracting 24h would repeat or skip
+ * a day and drop a column from every chart.
+ */
+export const dayKeyDaysAgo = (daysAgo: number, now = Date.now()) => {
+  const d = new Date(dayStart(now))
+  d.setDate(d.getDate() - daysAgo)
+  return dayKey(d.getTime())
 }
 
 export const dayLabel = (key: string) => {

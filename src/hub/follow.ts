@@ -52,7 +52,6 @@ export function createFollow() {
         return snapshot()
       }
 
-      const occurrenceIds = groups.flatMap(group => group.items.map(item => `${group.id}:${item.id}`))
       const group = groups.at(-1)
       const item = group?.items.at(-1)
       const cursor = group === undefined
@@ -61,15 +60,19 @@ export function createFollow() {
           ? group.id
           : `${group.id}:${item.id}:${item.status}:${item.resultSeq ?? 'open'}:${item.resultTime ?? 'open'}`
       if (cursor !== null && cursor !== lastCursor) {
+        // The id list only matters when the newest occurrence changes: a
+        // streamed delta republishes the same picture many times per second,
+        // and rebuilding every id on each republication is pure waste.
+        const occurrenceIds = groups.flatMap(group => group.items.map(item => `${group.id}:${item.id}`))
         if (!follow && lastCursor !== null) {
           const previousIds = new Set(observedOccurrenceIds)
           const appended = occurrenceIds.filter(id => !previousIds.has(id)).length
           unread += Math.max(1, appended)
         }
+        observedOccurrenceIds = occurrenceIds
         lastCursor = cursor
         if (follow) selectedId = null
       }
-      observedOccurrenceIds = occurrenceIds
       return snapshot()
     },
 
@@ -81,7 +84,13 @@ export function createFollow() {
 
     onScroll({ atBottom }: RailScrollState): FollowSnapshot {
       if (atBottom) {
-        if (unread === 0 && selectedId === null) follow = true
+        // Reaching the bottom means the user is back at the live edge: the
+        // backlog they scrolled past is now behind them, so it must not keep
+        // the rail frozen behind a stale "N new" affordance.
+        if (selectedId === null) {
+          unread = 0
+          follow = true
+        }
       } else if (follow) {
         follow = false
       }

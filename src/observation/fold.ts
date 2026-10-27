@@ -267,10 +267,19 @@ function parseArgs(raw: unknown): Record<string, unknown> {
   }
 }
 
-function stableValue(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(stableValue)
+/**
+ * JSON.parse keeps whatever nesting the caller wrote, so a hostile or broken
+ * tool argument can be thousands of levels deep. Both walkers below stop at
+ * this depth: past it the payload is evidence of nothing, and unbounded
+ * recursion would throw RangeError while rendering.
+ */
+const NESTED_VALUE_DEPTH = 32
+
+function stableValue(value: unknown, depth = 0): unknown {
+  if (depth >= NESTED_VALUE_DEPTH) return null
+  if (Array.isArray(value)) return value.map(child => stableValue(child, depth + 1))
   if (!isRecord(value)) return value
-  return Object.fromEntries(Object.keys(value).sort().map(key => [key, stableValue(value[key])]))
+  return Object.fromEntries(Object.keys(value).sort().map(key => [key, stableValue(value[key], depth + 1)]))
 }
 
 /** Stable exact signature used only for evidence-backed retry detection. */
@@ -286,9 +295,10 @@ function safeStringify(value: unknown): string {
   }
 }
 
-function textFromContent(value: unknown, output: string[] = []): string[] {
+function textFromContent(value: unknown, output: string[] = [], depth = 0): string[] {
+  if (depth >= NESTED_VALUE_DEPTH) return output
   if (Array.isArray(value)) {
-    for (const child of value) textFromContent(child, output)
+    for (const child of value) textFromContent(child, output, depth + 1)
     return output
   }
   if (!isRecord(value)) return output
@@ -297,8 +307,8 @@ function textFromContent(value: unknown, output: string[] = []): string[] {
     return output
   }
   if (typeof value.output === 'string') output.push(value.output)
-  if (Array.isArray(value.content)) textFromContent(value.content, output)
-  if (isRecord(value.message)) textFromContent(value.message, output)
+  if (Array.isArray(value.content)) textFromContent(value.content, output, depth + 1)
+  if (isRecord(value.message)) textFromContent(value.message, output, depth + 1)
   return output
 }
 

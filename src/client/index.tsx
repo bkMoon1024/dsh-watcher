@@ -36,7 +36,15 @@ export function apply(ctx: ClientContext) {
       const session = (ctx.sessions as any).binding?.(sessionId)?.session as
         | { loadOlder: () => Promise<void>; getSnapshot: () => { hasMore: boolean; loadingOlder: boolean } }
         | undefined
-      if (session === undefined) throw new Error(`dsh-watcher: session "${sessionId}" is unavailable`)
+      if (session === undefined) {
+        // A header can render before its session binding exists (restore, cold
+        // start, closing window). Throwing here would escape into React's render
+        // path, so degrade to a read-only placeholder instead.
+        return {
+          loadOlderPage: () => Promise.resolve(),
+          loadAllHistory: async () => ({ kind: 'blocked', pages: 0, reason: 'busy' }),
+        }
+      }
       return {
         // One page at a time, so a long session can be walked backwards
         // without committing to the whole history (or hitting its page limit).

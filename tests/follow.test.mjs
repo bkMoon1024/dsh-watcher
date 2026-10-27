@@ -80,3 +80,12 @@ test('back to latest clears unread and selection', () => {
     selectedId: null,
   })
 })
+
+test('repeated republication while pinned never double counts an appended occurrence', () => {
+  const follow = createFollow()
+  follow.onPicture(picture(['a', 'a1']))
+  follow.onSelect('a')
+  for (let i = 0; i < 50; i++) follow.onPicture(picture(['a', 'a1']))
+  assert.equal(follow.onPicture(picture(['a', 'a1', 'a2'])).unread, 1)
+  assert.equal(follow.onPicture(picture(['a', 'a1', 'a2', 'a3'])).unread, 2)
+})

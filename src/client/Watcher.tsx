@@ -162,10 +162,45 @@ function ReadyWatcher({
   // Folding unconditionally meant every streaming delta paid for a picture
   // nobody was looking at. Fold only while the panel is open; the closed
   // trigger reads the cheap live session flags instead.
-  const snapshotPicture = useMemo(
-    () => (open ? foldSnapshot(snapshot, { running }) : null),
-    [open, snapshot, running],
-  )
+  //
+  // While a turn streams, the host republishes this snapshot for every delta,
+  // and a long session does not fold cheaply (a 20k-event session folds in
+  // ~130 ms). Refolding per delta pegged the main thread, so live rendering
+  // coalesces to a bounded rate that backs off with the measured fold cost.
+  // The moment the turn settles the newest snapshot folds immediately, so the
+  // read can never lag behind recorded evidence.
+  const [foldSource, setFoldSource] = useState(snapshot)
+  const latestFoldSource = useRef(snapshot)
+  const foldCostRef = useRef(0)
+  latestFoldSource.current = snapshot
+  useEffect(() => {
+    if (!open || !running) return
+    let cancelled = false
+    let timer: number | undefined
+    const tick = () => {
+      if (cancelled) return
+      setFoldSource(latestFoldSource.current)
+      timer = window.setTimeout(tick, Math.max(120, foldCostRef.current * 3))
+    }
+    tick()
+    return () => {
+      cancelled = true
+      if (timer !== undefined) window.clearTimeout(timer)
+    }
+  }, [open, running])
+  // Idle snapshots are folded on arrival: a settled turn is exactly when the
+  // reader expects the panel to catch up, and there is nothing to coalesce.
+  useEffect(() => {
+    if (running) return
+    setFoldSource(snapshot)
+  }, [running, snapshot])
+  const snapshotPicture = useMemo(() => {
+    if (!open) return null
+    const started = performance.now()
+    const folded = foldSnapshot(foldSource, { running })
+    foldCostRef.current = performance.now() - started
+    return folded
+  }, [open, foldSource, running])
   const observedRef = useRef<{ sessionId: string; picture: WorkPicture; source: WorkPicture } | null>(null)
   const lastPictureRef = useRef<WorkPicture | null>(null)
   const picture = useMemo(() => {
@@ -351,9 +386,9 @@ function ReadyWatcher({
   // Filtering narrows the path instead of hiding it: a turn survives when any
   // of its groups does, and an active filter opens the turns it kept so the
   // matches are not hidden behind collapsed headers.
-  const visibleTurns = filterActive
+  const visibleTurns = useMemo(() => (filterActive
     ? picture.turns.filter(turn => turn.groups.some(group => groupMatchesFilter(group, pathFilter)))
-    : picture.turns
+    : picture.turns), [filterActive, picture.turns, pathFilter])
   const noFilterMatch = filterActive && visibleTurns.length === 0
   const turnsText = totalTurnCount > picture.turnCount
     ? `${picture.turnCount}/${totalTurnCount} 轮`
@@ -398,42 +433,51 @@ function ReadyWatcher({
   // Escape peels one layer at a time: the open tool first, then the detail,
   // then the unfolded path, then the panel. Arrow keys move between the records
   // of the open detail, but never while a text field has focus.
-  useEffect(() => {
-    if (!open) return
-    const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        if (activeTool !== 'none') {
-          setActiveTool('none')
-          return
-        }
-        if (selected !== undefined && !inspectorClosing) {
-          closeInspector()
-          return
-        }
-        if (timelineOpen) {
-          setTimelineOpen(false)
-          return
-        }
-        setOpen(false)
-        triggerRef.current?.focus()
+  // The listener is bound once per open panel and reads the newest closures
+  // through a ref: rebinding it on every render churned add/remove for each
+  // streaming delta.
+  const keydownHandler = useRef<(event: globalThis.KeyboardEvent) => void>(() => {})
+  keydownHandler.current = (event: globalThis.KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      if (activeTool !== 'none') {
+        setActiveTool('none')
         return
       }
-      if (selected === undefined || inspectorClosing) return
-      const target = event.target
-      if (target instanceof HTMLElement
-        && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return
-      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-        event.preventDefault()
-        stepSelection(1)
-      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-        event.preventDefault()
-        stepSelection(-1)
+      if (selected !== undefined) {
+        // The detail is still animating out: swallow this Esc instead of
+        // collapsing the path underneath the closing column.
+        if (!inspectorClosing) closeInspector()
+        return
       }
+      if (timelineOpen) {
+        setTimelineOpen(false)
+        return
+      }
+      setOpen(false)
+      triggerRef.current?.focus()
+      return
     }
+    // A floating tool owns the keyboard while it is open.
+    if (activeTool !== 'none') return
+    if (selected === undefined || inspectorClosing) return
+    const target = event.target
+    if (target instanceof HTMLElement
+      && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      event.preventDefault()
+      stepSelection(1)
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      stepSelection(-1)
+    }
+  }
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (event: globalThis.KeyboardEvent) => keydownHandler.current(event)
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  })
+  }, [open])
 
   /**
    * "定位现场" must end at the failing work item, not just somewhere near the

@@ -11,7 +11,7 @@
 Open **Settings → Plugins → Add plugin** and enter this in “Package name or address”:
 
 ```text
-github:daha1216/dsh-watcher#v0.7.1
+github:daha1216/dsh-watcher#v0.7.2
 ```
 
 The desktop plugin manager owns the Desktop profile and bundled package manager. This release commits `lib/`; normal use needs no clone, build, or DSHX installation. Follow the app if it asks you to reload or reopen after installation.
@@ -19,7 +19,7 @@ The desktop plugin manager owns the Desktop profile and bundled package manager.
 ### Web CLI
 
 ```sh
-dsh plugin --profile web add github:daha1216/dsh-watcher#v0.7.1
+dsh plugin --profile web add github:daha1216/dsh-watcher#v0.7.2
 ```
 
 This official CLI command writes only the `web` profile; it cannot modify the Desktop App profile. For an already-running Web Host, reopen that Host once and reload the page.
@@ -61,11 +61,20 @@ dsh plugin --profile web remove dsh-watcher
 
 The public CLI manages `web` only; use the in-app “Add plugin” entry above for the Desktop App.
 
-The settings summary and session HUD show **Estimated cost** (not “total value”) next to total tokens. Input / output / cache buckets are priced from `pricing/models.yaml`. A missing row is **Unknown**, never $0. A partial estimate keeps the known dollar in the main number and footnotes **Some models unpriced**. It is an estimate, not a bill. The default table covers mainstream DeepSeek, MiniMax, OpenAI, Anthropic, Gemini, Grok, GLM, and Qwen rows and is static (no live fetch). Override it in Watcher settings (`localStorage` key `dsh-watcher:pricing-override:v1`). PRs to the default table are welcome.
+The settings summary and session HUD show **Estimated cost** (not “total value”) next to total tokens. Input / output / cache buckets are priced from `pricing/models.yaml`. A missing row is **Unknown**, never $0. The table's `unit` (per million / per thousand tokens) and each row's `currency` are honoured: a non-USD row prints its own currency sign, a mixed-currency scan refuses the total instead of converting, and a partial estimate keeps the known amount in the main number and footnotes **Some models unpriced**. It is an estimate, not a bill. The default table covers mainstream DeepSeek, MiniMax, OpenAI, Anthropic, Gemini, Grok, GLM, and Qwen rows and is static (no live fetch). Override it in Watcher settings (`localStorage` key `dsh-watcher:pricing-override:v1`). PRs to the default table are welcome.
 
 The interaction contract lives in [DESIGN.md](./DESIGN.md). MIT.
 
-## What's new (0.7.1)
+## What's new (0.7.2)
+
+- **An adversarial audit.** Five read-only review lanes plus a replay of real session logs fixed twenty-odd crashes, mispriced costs, privacy leaks and lifecycle defects. The biggest one: repeated-failure evidence never fired on the real Host shape (none of 10,951 recorded `tool/result` events carried a `tool-result` block). Results now settle from `message.isError` / `message.toolCallId`, and the failure counts of three real sessions match the recorded `isError` flags exactly.
+- **No more stack overflow, no more NaN.** A call or result nested thousands of levels deep no longer raises `RangeError` inside the render memo; a chunk without a usable timestamp no longer writes `undefined` / `NaN` into the projection, an abandoned attempt settles at its last content time, and an overnight pause is no longer booked as hours of model time.
+- **Cost is priced correctly.** `per_1k_tokens` is no longer charged at the per-million divisor (a 1000x overestimate), a row's currency sign is honoured, a mixed-currency scan refuses the total, and a corrupted pricing override no longer breaks the settings page or the panel.
+- **Long sessions stay responsive.** The open panel no longer refolds the whole session on every streaming delta (a 20k-event session folds in ~130 ms); live folds coalesce at a rate that backs off with the measured cost and the settled turn folds immediately.
+- **Privacy boundaries.** Remote images in recorded markdown render as links, so opening a record no longer fetches a third-party URL chosen by a model or a fetched file; the raw tab and absolute paths stay exact by contract, and the boundary is documented in DESIGN.md.
+- **Interaction and edges.** Esc no longer collapses the panel while the inspector exits, arrow keys are inert while the tools menu is open, a search filter no longer makes the fold chevron inert, following restores itself at the bottom of the rail, DST zones no longer duplicate or drop a calendar column, and 59.96 s reads `1 分 0 秒`.
+
+## 0.7.1
 
 - Verified against DeepSeek Harness **0.2.1-rc.3**; the compatibility note now tracks the **0.2.x** line (peer range unchanged: `>=0.1.7-rc.1 <0.1.8 || ^0.2.0-rc.1`). 0.3.0 and above are refused by the plugin manager as `incompatible-version`.
 

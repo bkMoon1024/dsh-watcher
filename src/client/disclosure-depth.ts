@@ -42,6 +42,20 @@ export function layerDisclosureOpen(
   return state.layers[layer][key] ?? state.depth === 'detail'
 }
 
+/**
+ * The reader's own toggle for one key, or `undefined` while the depth policy is
+ * still deciding. A surface that overrides the default for a reason (a search
+ * filter unfolding every match) uses this to let an explicit click win instead
+ * of pinning the surface open after the click appears to do nothing.
+ */
+export function layerDisclosureOverride(
+  state: DisclosureState,
+  layer: DisclosureLayer,
+  key: string,
+): boolean | undefined {
+  return state.layers[layer][key]
+}
+
 export function setLayerDisclosure(
   state: DisclosureState,
   layer: DisclosureLayer,

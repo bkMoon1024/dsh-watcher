@@ -19,7 +19,8 @@ test('same parameters with different JSON key order match',()=>{const rows=fixtu
 test('different error bodies break failure streak',()=>{const rows=failures();rows[7]=result(7,'c1',true,'other');assert.equal(fold(rows).findings.length,0);});
 test('authoritative RC1 error field counts failure without isError',()=>{const s=fold(fixture([complete(),call(4,'c'),result(5,'c',false,'oops',{name:'ToolError',code:'EIO'})]));assert.equal(s.totals.toolErrors,1);});
 test('unmatched result never manufactures a call',()=>{const s=fold(fixture([result(3,'orphan')]));assert.equal(s.totals.tools,0);assert.equal(s.totals.toolErrors,0);});
-test('long arguments do not become equal through truncation',()=>{const rows=fixture([complete()]);for(let i=0;i<3;i++)rows.push(call(4+2*i,`c${i}`,'x'.repeat(65537)),result(5+2*i,`c${i}`));assert.equal(fold(rows).findings.length,0);});
+test('long arguments never become equal through truncation',()=>{const rows=fixture([complete()]);for(let i=0;i<3;i++){const args='x'.repeat(65537)+String(i);rows.push(call(4+2*i,`c${i}`,args),result(5+2*i,`c${i}`));}assert.equal(fold(rows).findings.length,0);});
+test('an oversize failing output still builds the repeated-failure chain',()=>{const rows=fixture([complete()]);for(let i=0;i<3;i++)rows.push(call(4+2*i,`c${i}`,'{"command":"npm test"}'),result(5+2*i,`c${i}`,true,'y'.repeat(65537)));const findings=fold(rows).findings;assert.equal(findings.length,1);assert.equal(findings[0].kind,'repeated-failure');});
 test('new context invalidates uninterrupted failure claim',()=>{const rows=failures();rows.splice(8,0,event('user/message',7.5,750,{source:{kind:'user'}}));const shifted=rows.map((e,i)=>({...e,seq:i}));assert.equal(fold(shifted).findings.length,0);});
 test('canceled request without usage is unknown, not free',()=>{const s=fold(fixture([event('step/end',3,100,{turn:1,step:1})]));assert.equal(s.totals.calls,1);assert.equal(s.totals.reported,0);});
 test('actual assistant model source owns attribution',()=>{const s=fold(fixture([complete(3,usage,'b')]));assert.equal(s.models[0].model,'b');});
@@ -91,3 +92,46 @@ test('capped scan keeps the most recent sessions regardless of list order',async
 test('unscannable sessions still count toward the honest total',async()=>{const remote={session:{list:async()=>({items:[{sessionId:'a'},{sessionId:'b'},{sessionId:'c'}]})}};const r=await scanSessions(remote,{limit:2});assert.equal(r.total,3);assert.equal(r.selected,2);assert.equal(r.rows.filter(x=>x.error).length,2);});
 test('durable attempt stream updates pending, settlement publishes immediately',()=>{const s=fold(fixture());const n=reduceEvent(s,event('assistant/attempt',3,200,{turn:1,step:1,stream:[{type:'text-chunks',time0:200,index:0,dt:[],texts:['x']}]}));assert.equal(viewOf(n).pending.lastContentAt,200);assert.equal(viewOf(reduceEvent(n,complete(4))).totals.reported,1);});
 test('checkpoint restore matches uninterrupted state',()=>{const s=fold(fixture());assert.deepEqual(viewOf(reduceEvent(JSON.parse(JSON.stringify(s)),complete())),viewOf(reduceEvent(s,complete())));});
+test('a stream chunk without a usable time never writes NaN or undefined timestamps',()=>{
+  for (const time of [undefined, Number.NaN, -1, 1.5, Number.POSITIVE_INFINITY]) {
+    const rows = fixture([event('assistant/attempt',3,200,{turn:1,step:1,stream:[{type:'chunk',...(time === undefined ? {} : {time}),chunk:{type:'text-delta',text:'hi'}}]})]);
+    const pending = viewOf(fold(rows)).pending;
+    assert.equal(pending?.lastContentAt ?? null, null, `time=${String(time)}`);
+    assert.doesNotThrow(()=>JSON.stringify(viewOf(fold(rows))));
+  }
+});
+test('a resumed turn does not charge the whole downtime to the abandoned step',()=>{
+  const rows = fixture([event('assistant/attempt',3,100,{turn:1,step:1,stream:[{type:'chunk',time:100,chunk:{type:'text-delta',text:'x'}}]}),event('turn/start',4,18_000_100,{turn:2})]);
+  const s = fold(rows);
+  assert.ok((s.totals.modelMs ?? 0) < 1000, `modelMs=${s.totals.modelMs}`);
+});
+test('the host message shape (content text + message.isError) settles a failed tool',()=>{
+  const rows = fixture([event('tool/call',3,30,{turn:1,step:1,callId:'a',name:'bash',arguments:'{"command":"ls"}'}),
+    event('tool/result',4,130,{turn:1,step:1,message:{role:'tool',source:{kind:'tool',callId:'a'},toolCallId:'a',isError:true,content:[{type:'text',text:'denied'}]}})]);
+  const s = fold(rows);
+  assert.equal(s.totals.toolErrors,1);
+  assert.equal(s.totals.toolMs,100);
+});
+test('repeated failures in the host message shape still produce evidence',()=>{
+  const rows = fixture([]);
+  for(let i=0;i<3;i++){
+    rows.push(event('tool/call',10+2*i,1000+i*10,{turn:1,step:1,callId:`c${i}`,name:'bash',arguments:'{"command":"same"}'}));
+    rows.push(event('tool/result',11+2*i,1001+i*10,{turn:1,step:1,message:{role:'tool',source:{kind:'tool',callId:`c${i}`},toolCallId:`c${i}`,isError:true,content:[{type:'text',text:'same error'}]}}));
+  }
+  const s = fold(rows);
+  assert.equal(s.findings.length,1);
+  assert.deepEqual(s.findings[0].seqs,[10,12,14]);
+  assert.equal(s.findings[0].kind,'repeated-failure');
+});
+test('a call is settled through message.toolCallId when source.callId is absent',()=>{
+  const s = fold(fixture([event('tool/call',3,30,{turn:1,step:1,callId:'a',name:'bash',arguments:'{}'}),
+    event('tool/result',4,130,{turn:1,step:1,message:{role:'tool',toolCallId:'a',isError:false,content:[{type:'text',text:'ok'}]}})]));
+  assert.equal(s.tools.length,0);
+  assert.equal(s.totals.toolErrors,0);
+});
+test('scanned rows without a complete totals block are reported, not aggregated as zeros',async()=>{
+  const items = [{sessionId:'a',updatedAt:1,projections:{values:{watcherInsights:{version:1,sessionId:'a',seq:1,updatedAt:1,totals:{tokens:5},models:[],findings:[]}}}}];
+  const scan = await scanSessions({session:{list:async()=>({value:{items}})}},{limit:10});
+  assert.equal(scan.rows[0].value,null);
+  assert.match(scan.rows[0].error,/尚无|格式|缓存/);
+});

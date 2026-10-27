@@ -878,7 +878,7 @@ export function buildRateIndex(table) {
       cache: rateOf(row.cache),
       cacheWrite: rateOf(row.cacheWrite),
     };
-    for (const key of [id, ...(row.aliases ?? [])]) {
+    for (const key of [id, ...stringList(row.aliases)]) {
       const normalized = normalizeModelId(key);
       if (normalized && !UNLABELED.has(normalized)) map.set(normalized, rates);
     }
@@ -896,6 +896,14 @@ export function lookupRates(model, table) {
   return null;
 }
 
+/** Model ids that must never be written through a plain object assignment. */
+const RESERVED_MODEL_KEYS = new Set(['__proto__', 'prototype', 'constructor'])
+/** Override text is untrusted: only an array of strings counts as aliases. */
+function stringList(value) {
+  if (!Array.isArray(value)) return []
+  return value.filter(entry => typeof entry === 'string')
+}
+
 export function mergePricing(base, overlay) {
   const next = cloneTable(base ?? defaultPricing());
   if (overlay == null) return indexTable(next);
@@ -907,8 +915,12 @@ export function mergePricing(base, overlay) {
   if (typeof overlay.unit === 'string' && overlay.unit.trim()) next.unit = overlay.unit.trim();
   for (const [id, row] of Object.entries(incoming ?? {})) {
     if (!id || !row || typeof row !== 'object' || Array.isArray(row)) continue;
+    // A stored override is user-editable text: `__proto__` would rewrite the
+    // prototype instead of adding a model, and a non-array aliases value used to
+    // throw while the settings page rendered.
+    if (RESERVED_MODEL_KEYS.has(id)) continue;
     const prev = next.models[id] ?? { aliases: [], currency: next.currency };
-    const aliases = [...new Set([...(prev.aliases ?? []), ...((row.aliases ?? []).filter(a => typeof a === 'string'))])];
+    const aliases = [...new Set([...stringList(prev.aliases), ...stringList(row.aliases)])];
     next.models[id] = {
       aliases,
       currency: typeof row.currency === 'string' && row.currency.trim() ? row.currency.trim() : prev.currency,
@@ -926,10 +938,16 @@ function indexTable(table) {
   return table;
 }
 
-function bucketCost(tokens, rate) {
+/** The editor exposes `unit`, so the estimate must honour it or costs are 1000x off. */
+const UNIT_DIVISOR = new Map([['per_1m_tokens', PER_MILLION], ['per_1k_tokens', 1_000]])
+function unitDivisor(table) {
+  const unit = typeof table?.unit === 'string' ? table.unit.trim() : PRICING_UNIT
+  return UNIT_DIVISOR.get(unit) ?? null
+}
+function bucketCost(tokens, rate, divisor) {
   if (tokens <= 0) return { tokens: 0, usd: 0, unknown: false };
   if (rate === undefined) return { tokens, usd: null, unknown: true };
-  return { tokens, usd: (tokens / PER_MILLION) * rate, unknown: false };
+  return { tokens, usd: (tokens / divisor) * rate, unknown: false };
 }
 
 /**
@@ -946,24 +964,33 @@ export function estimateModelUsage(usage, table) {
   const bucketSum = input + output + cacheRead + cacheWrite;
   const totalTokens = Math.max(reported, bucketSum);
 
+  // A row's own currency wins, then the table's. The UI must render this code
+  // instead of a hard-coded `$`, or a CNY override reads as dollars.
+  const tableCurrency = typeof table?.currency === 'string' && table.currency.trim() ? table.currency.trim() : 'USD'
   if (totalTokens === 0) {
-    return { status: 'zero', usd: 0, unknown: false, totalTokens: 0, parts: [] };
+    return { status: 'zero', usd: 0, currency: tableCurrency, unknown: false, totalTokens: 0, parts: [] };
   }
 
   const rates = lookupRates(usage?.model ?? usage?.modelId, table);
   if (!rates) {
-    return { status: 'unknown', usd: null, unknown: true, totalTokens, reason: 'missing-model', parts: [] };
+    return { status: 'unknown', usd: null, currency: tableCurrency, unknown: true, totalTokens, reason: 'missing-model', parts: [] };
+  }
+  const currency = typeof rates.currency === 'string' && rates.currency.trim() ? rates.currency.trim() : tableCurrency
+
+  const divisor = unitDivisor(table);
+  if (divisor === null) {
+    return { status: 'unknown', usd: null, currency, unknown: true, totalTokens, reason: 'unsupported-unit', parts: [] };
   }
 
   if (bucketSum === 0 && reported > 0) {
-    return { status: 'unknown', usd: null, unknown: true, totalTokens, reason: 'unsplit-tokens', parts: [] };
+    return { status: 'unknown', usd: null, currency, unknown: true, totalTokens, reason: 'unsplit-tokens', parts: [] };
   }
 
   const parts = {
-    input: bucketCost(input, rates.input),
-    output: bucketCost(output, rates.output),
-    cache: bucketCost(cacheRead, rates.cache),
-    cacheWrite: bucketCost(cacheWrite, rates.cacheWrite),
+    input: bucketCost(input, rates.input, divisor),
+    output: bucketCost(output, rates.output, divisor),
+    cache: bucketCost(cacheRead, rates.cache, divisor),
+    cacheWrite: bucketCost(cacheWrite, rates.cacheWrite, divisor),
   };
   let usd = 0;
   let unknown = false;
@@ -976,9 +1003,9 @@ export function estimateModelUsage(usage, table) {
     unknown = true;
     parts.unallocated = { tokens: reported - bucketSum, usd: null, unknown: true };
   }
-  if (unknown && usd === 0) return { status: 'unknown', usd: null, unknown: true, totalTokens, reason: 'missing-rate', parts };
-  if (unknown) return { status: 'partial', usd, unknown: true, totalTokens, parts };
-  return { status: 'priced', usd, unknown: false, totalTokens, parts };
+  if (unknown && usd === 0) return { status: 'unknown', usd: null, currency, unknown: true, totalTokens, reason: 'missing-rate', parts };
+  if (unknown) return { status: 'partial', usd, currency, unknown: true, totalTokens, parts };
+  return { status: 'priced', usd, currency, unknown: false, totalTokens, parts };
 }
 
 export function estimateUsageRows(rows, table) {
@@ -988,18 +1015,28 @@ export function estimateUsageRows(rows, table) {
   let unknown = false;
   let totalTokens = 0;
   let anyPositive = false;
+  const currencies = new Set();
   const estimated = list.map(row => {
     const result = estimateModelUsage(row, table);
     totalTokens += result.totalTokens ?? 0;
     if (result.status !== 'zero') anyPositive = true;
     if (result.unknown) unknown = true;
-    if (result.usd != null) usd += result.usd;
+    if (result.usd != null) {
+      usd += result.usd;
+      if (result.currency) currencies.add(result.currency);
+    }
     return result;
   });
-  if (!anyPositive) return { status: 'zero', usd: 0, unknown: false, totalTokens: 0, rows: estimated };
-  if (unknown && usd === 0) return { status: 'unknown', usd: null, unknown: true, totalTokens, rows: estimated };
-  if (unknown) return { status: 'partial', usd, unknown: true, totalTokens, rows: estimated };
-  return { status: 'priced', usd, unknown: false, totalTokens, rows: estimated };
+  // Adding CNY and USD rows into one figure would be a wrong number, not a
+  // rounded one: refuse the total and let the note say why.
+  const currency = currencies.size === 1 ? [...currencies][0] : null;
+  if (currencies.size > 1) {
+    return { status: 'unknown', usd: null, currency: null, unknown: true, totalTokens, reason: 'mixed-currency', rows: estimated };
+  }
+  if (!anyPositive) return { status: 'zero', usd: 0, currency, unknown: false, totalTokens: 0, rows: estimated };
+  if (unknown && usd === 0) return { status: 'unknown', usd: null, currency, unknown: true, totalTokens, rows: estimated };
+  if (unknown) return { status: 'partial', usd, currency, unknown: true, totalTokens, rows: estimated };
+  return { status: 'priced', usd, currency, unknown: false, totalTokens, rows: estimated };
 }
 
 export function estimateFromInsights(view, stats, scope, selectedModel, currentRoute, table) {
@@ -1011,21 +1048,32 @@ export function estimateFromInsights(view, stats, scope, selectedModel, currentR
   return estimateModelUsage({ ...stats, model: currentRoute?.model }, table);
 }
 
-export function formatUsd(amount) {
+const CURRENCY_SIGNS = new Map([['USD', '$'], ['CNY', '¥'], ['RMB', '¥'], ['EUR', '€'], ['GBP', '£'], ['JPY', '¥'], ['HKD', 'HK$']]);
+
+/** `symbol + digits`, or `CODE 1.20` for a currency with no known sign. */
+function money(amount, body, currency) {
+  const code = typeof currency === 'string' && currency.trim() ? currency.trim().toUpperCase() : 'USD';
+  const sign = CURRENCY_SIGNS.get(code);
+  return sign === undefined ? `${code} ${body}` : `${sign}${body}`;
+}
+
+export function formatUsd(amount, currency = 'USD') {
   if (!Number.isFinite(amount)) return null;
-  if (amount === 0) return '$0.00';
+  if (amount === 0) return money(0, '0.00', currency);
   const abs = Math.abs(amount);
-  if (abs < 0.0001) return `$${amount.toFixed(6)}`.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
-  if (abs < 0.01) return `$${amount.toFixed(4)}`;
-  if (abs < 1) return `$${amount.toFixed(3)}`;
-  return `$${amount.toFixed(2)}`;
+  // The sign belongs in front of the symbol: `-$0.50`, never `$-0.50`.
+  const sign = amount < 0 ? '-' : '';
+  if (abs < 0.0001) return sign + money(amount, abs.toFixed(6).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, ''), currency);
+  if (abs < 0.01) return sign + money(amount, abs.toFixed(4), currency);
+  if (abs < 1) return sign + money(amount, abs.toFixed(3), currency);
+  return sign + money(amount, abs.toFixed(2), currency);
 }
 
 export function formatEstimate(result, locale = 'zh') {
   const copy = costCopy(locale);
   if (!result || result.status === 'unknown') return copy.unknown;
-  if (result.status === 'zero') return formatUsd(0);
-  const money = formatUsd(result.usd);
+  if (result.status === 'zero') return formatUsd(0, result.currency);
+  const money = formatUsd(result.usd, result.currency);
   if (money == null) return copy.unknown;
   return money;
 }
@@ -1033,6 +1081,7 @@ export function formatEstimate(result, locale = 'zh') {
 /** Quiet footnote for partial rows. Never embed this in the bold main number. */
 export function formatEstimateNote(result, locale = 'zh') {
   const copy = costCopy(locale);
+  if (result?.reason === 'mixed-currency') return copy.mixedCurrency;
   return result?.status === 'partial' ? copy.someUnpriced : '';
 }
 

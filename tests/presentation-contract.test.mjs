@@ -39,7 +39,7 @@ const packageSource = new URL('../package.json', import.meta.url)
 test('text results use the official semantic reader while raw evidence stays exact', async () => {
   const source = await clientSource
 
-  assert.match(source, /<MarkdownText text=\{presentation\.text\}/)
+  assert.match(source, /<MarkdownText text=\{safeMarkdown\(presentation\.text\)\}/)
   assert.match(source, /data-watcher-document=""/)
   assert.doesNotMatch(source, /<pre className=\{css\.textResult\}>/)
   assert.match(source, /<pre>\{raw \|\| '没有原始数据'\}<\/pre>/)
@@ -360,7 +360,7 @@ test('each Step can disclose a truthful nested model stage and provider-visible 
   assert.match(source, /输出 \/ 工具意图/)
   assert.match(source, /分段耗时不可用/)
   assert.match(source, /aria-expanded=\{open\}/)
-  assert.match(source, /<MarkdownText text=\{attempt\.reasoningText\}/)
+  assert.match(source, /<MarkdownText text=\{safeMarkdown\(attempt\.reasoningText\)\}/)
   assert.match(source, /setLayerDisclosure\(current, 'model', modelKey, true\)/)
   assert.match(styles, /\.modelStage\s*\{/)
   assert.match(styles, /\.modelStageBar\s*\{/)

@@ -4,6 +4,7 @@ import {
   chooseDisclosureDepth,
   createDisclosureState,
   layerDisclosureOpen,
+  layerDisclosureOverride,
   resetDisclosureOverrides,
   toggleLayerDisclosure,
   toggleTurnDisclosure,
@@ -62,4 +63,11 @@ test('changing Session clears node overrides but preserves the chosen depth', ()
   assert.equal(nextSession.depth, 'detail')
   assert.deepEqual(nextSession.turns, {})
   assert.equal(layerDisclosureOpen(nextSession, 'reasoning', 'attempt-2'), true)
+})
+
+test('an explicit fold stays distinguishable from the depth default', () => {
+  const overview = createDisclosureState()
+  assert.equal(layerDisclosureOverride(overview, 'phase', 'phase-1'), undefined)
+  assert.equal(layerDisclosureOverride(toggleLayerDisclosure(overview, 'phase', 'phase-1'), 'phase', 'phase-1'), true)
+  assert.equal(layerDisclosureOverride(chooseDisclosureDepth('detail'), 'phase', 'phase-1'), undefined)
 })

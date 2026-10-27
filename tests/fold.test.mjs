@@ -367,3 +367,32 @@ test('parseJsonl keeps complete lines and skips one torn append', () => {
   assert.equal(events.length, 1)
   assert.equal(events[0].type, 'turn/start')
 })
+
+test('a pathologically nested argument object folds instead of blowing the stack', () => {
+  // Build the JSON text directly: stringifying a 5000-deep object would fail in
+  // the test itself, before the fold ever sees it.
+  const depth = 5000
+  const argumentsJson = `${'{"next":'.repeat(depth)}1${'}'.repeat(depth)}`
+  const picture = foldEvents([{
+    type: 'tool/call',
+    seq: 1,
+    time: 100,
+    data: { turn: 1, step: 1, callId: 'a', name: 'bash', arguments: argumentsJson },
+  }])
+  const [item] = allItems(picture)
+  assert.equal(item.toolName, 'bash')
+  // The fold survives; its signature walk is what had to stop recursing.
+  assert.equal(typeof item.signature, 'string')
+})
+
+test('a deeply nested result content array folds without a RangeError', () => {
+  let content = [{ type: 'text', text: 'leaf' }]
+  for (let i = 0; i < 3000; i++) content = [{ type: 'text', text: 'x', nested: content }]
+  const events = [call(1, 1, 1, 'a', 'bash', { command: 'echo hi' }), {
+    type: 'tool/result',
+    seq: 2,
+    time: 200,
+    data: { turn: 1, step: 1, message: { source: { kind: 'tool', callId: 'a' }, content } },
+  }]
+  assert.doesNotThrow(() => foldEvents(events))
+})
